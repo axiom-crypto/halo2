@@ -1639,6 +1639,7 @@ mod tests {
         impl Circuit<Fp> for FaultyCircuit {
             type Config = FaultyCircuitConfig;
             type FloorPlanner = SimpleFloorPlanner;
+            type Params = ();
             #[cfg(feature = "circuit-params")]
             fn params(&self) {}
 
@@ -1738,6 +1739,7 @@ mod tests {
         impl Circuit<Fp> for FaultyCircuit {
             type Config = FaultyCircuitConfig;
             type FloorPlanner = SimpleFloorPlanner;
+            type Params = ();
 
             fn configure(meta: &mut ConstraintSystem<Fp>) -> Self::Config {
                 let a = meta.advice_column();
@@ -1996,6 +1998,7 @@ mod tests {
         impl Circuit<Fp> for FaultyCircuit {
             type Config = FaultyCircuitConfig;
             type FloorPlanner = SimpleFloorPlanner;
+            type Params = ();
 
             fn configure(meta: &mut ConstraintSystem<Fp>) -> Self::Config {
                 let a = meta.advice_column();
