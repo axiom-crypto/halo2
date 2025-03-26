@@ -130,6 +130,7 @@ impl<F: Field, const W: usize, const H: usize> MyCircuit<F, W, H> {
 impl<F: Field, const W: usize, const H: usize> Circuit<F> for MyCircuit<F, W, H> {
     type Config = MyConfig<W>;
     type FloorPlanner = SimpleFloorPlanner;
+    type Params = ();
 
     fn without_witnesses(&self) -> Self {
         Self::default()
