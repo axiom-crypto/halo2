@@ -153,7 +153,11 @@ mod proptests {
     use super::{construct_intermediate_sets, Commitment, IntermediateSets};
     use ff::FromUniformBytes;
     use halo2curves::bn256::Fr;
-    use proptest::{collection::vec, prelude::*, sample::select};
+    use proptest::{
+        collection::{hash_set, vec},
+        prelude::*,
+        sample::select,
+    };
     use std::convert::TryFrom;
 
     #[derive(Debug, Clone)]
@@ -203,10 +207,16 @@ mod proptests {
     prop_compose! {
         // Mapping from column index to point index.
         fn arb_queries_inner(num_points: usize, num_cols: usize, num_queries: usize)(
-            col_indices in vec(select((0..num_cols).collect::<Vec<_>>()), num_queries),
-            point_indices in vec(select((0..num_points).collect::<Vec<_>>()), num_queries)
+            // Use a HashSet to ensure we sample distinct (column, point) queries.
+            queries in hash_set(
+                (
+                    select((0..num_cols).collect::<Vec<_>>()),
+                    select((0..num_points).collect::<Vec<_>>()),
+                ),
+                num_queries,
+            )
         ) -> Vec<(usize, usize)> {
-            col_indices.into_iter().zip(point_indices).collect()
+            queries.into_iter().collect()
         }
     }
 
