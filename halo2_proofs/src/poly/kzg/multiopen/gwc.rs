@@ -4,7 +4,10 @@ mod verifier;
 pub use prover::ProverGWC;
 pub use verifier::VerifierGWC;
 
-use crate::{poly::query::Query, transcript::ChallengeScalar};
+use crate::{
+    poly::query::{exists_query_collision, Query},
+    transcript::ChallengeScalar,
+};
 use ff::Field;
 use std::marker::PhantomData;
 
@@ -22,10 +25,16 @@ struct CommitmentData<F: Field, Q: Query<F>> {
     _marker: PhantomData<F>,
 }
 
-fn construct_intermediate_sets<F: Field, I, Q: Query<F>>(queries: I) -> Vec<CommitmentData<F, Q>>
+fn construct_intermediate_sets<F: Field, I, Q: Query<F>>(
+    queries: I,
+) -> Option<Vec<CommitmentData<F, Q>>>
 where
     I: IntoIterator<Item = Q> + Clone,
 {
+    let queries = queries.into_iter().collect::<Vec<_>>();
+    if exists_query_collision(&queries) {
+        return None;
+    }
     let mut point_query_map: Vec<(F, Vec<Q>)> = Vec::new();
     for query in queries {
         if let Some(pos) = point_query_map
@@ -39,12 +48,13 @@ where
         }
     }
 
-    point_query_map
+    let sets = point_query_map
         .into_iter()
         .map(|(point, queries)| CommitmentData {
             queries,
             point,
             _marker: PhantomData,
         })
-        .collect()
+        .collect();
+    Some(sets)
 }

@@ -135,3 +135,22 @@ impl<'com, C: CurveAffine, M: MSM<C>> Query<C::Scalar> for VerifierQuery<'com, C
         self.commitment
     }
 }
+
+// Caller tried to provide two different evaluations for the same
+// commitment. Permitting this would be unsound.
+pub(crate) fn exists_query_collision<F, Q>(queries: &[Q]) -> bool
+where
+    F: PartialEq + Copy,
+    Q: Query<F>,
+{
+    let mut query_set: Vec<(Q::Commitment, F)> = Vec::with_capacity(queries.len());
+    for query in queries.iter() {
+        let commitment = query.get_commitment();
+        let rotation = query.get_point();
+        if query_set.contains(&(commitment, rotation)) {
+            return true;
+        }
+        query_set.push((commitment, rotation));
+    }
+    false
+}

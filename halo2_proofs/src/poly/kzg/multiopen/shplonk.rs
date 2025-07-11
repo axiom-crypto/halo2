@@ -4,6 +4,7 @@ mod verifier;
 use std::hash::Hash;
 
 use crate::multicore::IntoParallelIterator;
+use crate::poly::query::exists_query_collision;
 use crate::{poly::query::Query, transcript::ChallengeScalar};
 use ff::Field;
 pub use prover::ProverSHPLONK;
@@ -52,11 +53,14 @@ struct IntermediateSets<F: Field + Hash, Q: Query<F>> {
 
 fn construct_intermediate_sets<F: Field + Hash, I, Q: Query<F, Eval = F>>(
     queries: I,
-) -> IntermediateSets<F, Q>
+) -> Option<IntermediateSets<F, Q>>
 where
     I: IntoIterator<Item = Q> + Clone,
 {
     let queries = queries.into_iter().collect::<Vec<_>>();
+    if exists_query_collision(&queries) {
+        return None;
+    }
 
     // Find evaluation of a commitment at a rotation
     let get_eval = |commitment: Q::Commitment, rotation: F| -> F {
@@ -137,10 +141,11 @@ where
         })
         .collect::<Vec<RotationSet<_, _>>>();
 
-    IntermediateSets {
+    let sets = IntermediateSets {
         rotation_sets,
         super_point_set,
-    }
+    };
+    Some(sets)
 }
 
 #[cfg(test)]
@@ -148,7 +153,11 @@ mod proptests {
     use super::{construct_intermediate_sets, Commitment, IntermediateSets};
     use ff::FromUniformBytes;
     use halo2curves::bn256::Fr;
-    use proptest::{collection::vec, prelude::*, sample::select};
+    use proptest::{
+        collection::{hash_set, vec},
+        prelude::*,
+        sample::select,
+    };
     use std::convert::TryFrom;
 
     #[derive(Debug, Clone)]
@@ -198,10 +207,16 @@ mod proptests {
     prop_compose! {
         // Mapping from column index to point index.
         fn arb_queries_inner(num_points: usize, num_cols: usize, num_queries: usize)(
-            col_indices in vec(select((0..num_cols).collect::<Vec<_>>()), num_queries),
-            point_indices in vec(select((0..num_points).collect::<Vec<_>>()), num_queries)
+            // Use a HashSet to ensure we sample distinct (column, point) queries.
+            queries in hash_set(
+                (
+                    select((0..num_cols).collect::<Vec<_>>()),
+                    select((0..num_points).collect::<Vec<_>>()),
+                ),
+                num_queries,
+            )
         ) -> Vec<(usize, usize)> {
-            col_indices.into_iter().zip(point_indices).collect()
+            queries.into_iter().collect()
         }
     }
 
@@ -233,14 +248,14 @@ mod proptests {
         fn test_intermediate_sets(
             (queries_1, queries_2) in compare_queries(8, 8, 16)
         ) {
-            let IntermediateSets { rotation_sets, .. } = construct_intermediate_sets(queries_1);
+            let IntermediateSets { rotation_sets, .. } = construct_intermediate_sets(queries_1).ok_or_else(|| TestCaseError::Fail("mismatched evals".into()))?;
             let commitment_sets = rotation_sets.iter().map(|data|
                 data.commitments.iter().map(Commitment::get).collect::<Vec<_>>()
             ).collect::<Vec<_>>();
 
             // It shouldn't matter what the point or eval values are; we should get
             // the same exact point set indices and point indices again.
-            let IntermediateSets { rotation_sets: new_rotation_sets, .. } = construct_intermediate_sets(queries_2);
+            let IntermediateSets { rotation_sets: new_rotation_sets, .. } = construct_intermediate_sets(queries_2).ok_or_else(|| TestCaseError::Fail("mismatched evals".into()))?;
             let new_commitment_sets = new_rotation_sets.iter().map(|data|
                 data.commitments.iter().map(Commitment::get).collect::<Vec<_>>()
             ).collect::<Vec<_>>();
