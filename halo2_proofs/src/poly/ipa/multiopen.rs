@@ -4,7 +4,10 @@
 //! [halo]: https://eprint.iacr.org/2019/1021
 
 use super::*;
-use crate::{poly::query::Query, transcript::ChallengeScalar};
+use crate::{
+    poly::query::{exists_query_collision, Query},
+    transcript::ChallengeScalar,
+};
 use ff::Field;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -59,10 +62,16 @@ type IntermediateSets<F, Q> = (
     Vec<Vec<F>>,
 );
 
-fn construct_intermediate_sets<F: Field + Ord, I, Q: Query<F>>(queries: I) -> IntermediateSets<F, Q>
+fn construct_intermediate_sets<F: Field + Ord, I, Q: Query<F>>(
+    queries: I,
+) -> Option<IntermediateSets<F, Q>>
 where
     I: IntoIterator<Item = Q> + Clone,
 {
+    let queries = queries.into_iter().collect::<Vec<_>>();
+    if exists_query_collision(&queries) {
+        return None;
+    }
     // Construct sets of unique commitments and corresponding information about
     // their queries.
     let mut commitment_map: Vec<CommitmentData<Q::Eval, Q::Commitment>> = vec![];
@@ -168,5 +177,5 @@ where
         }
     }
 
-    (commitment_map, point_sets)
+    Some((commitment_map, point_sets))
 }
