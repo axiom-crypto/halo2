@@ -11,7 +11,6 @@ use ff::Field;
 use group::Curve;
 use rand_core::RngCore;
 use std::io;
-use std::marker::PhantomData;
 
 /// IPA multi-open prover
 #[derive(Debug)]
@@ -80,14 +79,11 @@ impl<'params, C: CurveAffine> Prover<'params, IPACommitmentScheme<C>> for Prover
             .fold(None, |q_prime_poly, (points, poly)| {
                 let mut poly = points
                     .iter()
-                    .fold(poly.clone().unwrap().values, |poly, point| {
+                    .fold(poly.clone().unwrap().into_values(), |poly, point| {
                         kate_division(&poly, *point)
                     });
                 poly.resize(self.params.n as usize, C::Scalar::ZERO);
-                let poly = Polynomial {
-                    values: poly,
-                    _marker: PhantomData,
-                };
+                let poly = Polynomial::new(poly);
 
                 if q_prime_poly.is_none() {
                     Some(poly)

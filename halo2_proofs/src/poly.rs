@@ -66,124 +66,232 @@ impl Basis for LagrangeCoeff {}
 pub struct ExtendedLagrangeCoeff;
 impl Basis for ExtendedLagrangeCoeff {}
 
+/// Residency marker for a [`Polynomial`]. Implementors associate the backing
+/// container type via the [`Storage::Backing`] GAT: `Vec<F>` for [`Host`].
+/// Generic over `F` so a single marker can type every scalar choice the prover
+/// instantiates.
+pub trait Storage: 'static {
+    /// Backing container holding the polynomial's coefficients.
+    type Backing<F>;
+
+    /// Length of the backing container in elements.
+    fn backing_len<F>(b: &Self::Backing<F>) -> usize;
+
+    /// Compile-time tag distinguishing the storage flavours. Used by the few
+    /// code paths that are generic over `S` and want to take a runtime-fast
+    /// branch without virtual dispatch (the optimiser folds the branch since
+    /// `IS_DEVICE` is `const`).
+    const IS_DEVICE: bool;
+}
+
+/// Marker indicating a host-resident polynomial whose coefficients live in a
+/// `Vec<F>`.
+#[derive(Clone, Copy, Debug)]
+pub struct Host;
+
+impl Storage for Host {
+    type Backing<F> = Vec<F>;
+    fn backing_len<F>(b: &Vec<F>) -> usize {
+        b.len()
+    }
+    const IS_DEVICE: bool = false;
+}
+
 /// Represents a univariate polynomial defined over a field and a particular
-/// basis.
-#[derive(Clone, Debug)]
-pub struct Polynomial<F, B> {
-    pub(crate) values: Vec<F>,
+/// basis, parameterised by its storage residency.
+pub struct Polynomial<F, B, S: Storage = Host> {
+    storage: S::Backing<F>,
     _marker: PhantomData<B>,
 }
 
-impl<F, B> Index<usize> for Polynomial<F, B> {
-    type Output = F;
-
-    fn index(&self, index: usize) -> &F {
-        self.values.index(index)
+impl<F, B, S: Storage> Debug for Polynomial<F, B, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Polynomial")
+            .field("len", &S::backing_len::<F>(&self.storage))
+            .field("residency", &if S::IS_DEVICE { "Device" } else { "Host" })
+            .finish()
     }
 }
 
-impl<F, B> IndexMut<usize> for Polynomial<F, B> {
-    fn index_mut(&mut self, index: usize) -> &mut F {
-        self.values.index_mut(index)
+impl<F: Clone, B> Clone for Polynomial<F, B, Host> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            _marker: PhantomData,
+        }
     }
 }
 
-impl<F, B> Index<Range<usize>> for Polynomial<F, B> {
-    type Output = [F];
-
-    fn index(&self, index: Range<usize>) -> &[F] {
-        self.values.index(index)
-    }
-}
-
-impl<F, B> Index<RangeFrom<usize>> for Polynomial<F, B> {
-    type Output = [F];
-
-    fn index(&self, index: RangeFrom<usize>) -> &[F] {
-        self.values.index(index)
-    }
-}
-
-impl<F, B> IndexMut<Range<usize>> for Polynomial<F, B> {
-    fn index_mut(&mut self, index: Range<usize>) -> &mut [F] {
-        self.values.index_mut(index)
-    }
-}
-
-impl<F, B> IndexMut<RangeFrom<usize>> for Polynomial<F, B> {
-    fn index_mut(&mut self, index: RangeFrom<usize>) -> &mut [F] {
-        self.values.index_mut(index)
-    }
-}
-
-impl<F, B> Index<RangeFull> for Polynomial<F, B> {
-    type Output = [F];
-
-    fn index(&self, index: RangeFull) -> &[F] {
-        self.values.index(index)
-    }
-}
-
-impl<F, B> IndexMut<RangeFull> for Polynomial<F, B> {
-    fn index_mut(&mut self, index: RangeFull) -> &mut [F] {
-        self.values.index_mut(index)
-    }
-}
-
-impl<F, B> Deref for Polynomial<F, B> {
-    type Target = [F];
-
-    fn deref(&self) -> &[F] {
-        &self.values[..]
-    }
-}
-
-impl<F, B> DerefMut for Polynomial<F, B> {
-    fn deref_mut(&mut self) -> &mut [F] {
-        &mut self.values[..]
-    }
-}
-
-impl<F, B> Polynomial<F, B> {
-    /// Iterate over the values, which are either in coefficient or evaluation
-    /// form depending on the basis `B`.
-    pub fn iter(&self) -> impl Iterator<Item = &F> {
-        self.values.iter()
+impl<F, B, S: Storage> Polynomial<F, B, S> {
+    /// Construct a polynomial directly from its backing container. This is the
+    /// generic seam that lets out-of-crate storage backends build a
+    /// `Polynomial` for any `S`.
+    pub fn from_backing(backing: S::Backing<F>) -> Self {
+        Self {
+            storage: backing,
+            _marker: PhantomData,
+        }
     }
 
-    /// Iterate over the values mutably, which are either in coefficient or
-    /// evaluation form depending on the basis `B`.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut F> {
-        self.values.iter_mut()
+    /// Borrow the backing container.
+    pub fn backing(&self) -> &S::Backing<F> {
+        &self.storage
+    }
+
+    /// Mutably borrow the backing container.
+    pub fn backing_mut(&mut self) -> &mut S::Backing<F> {
+        &mut self.storage
+    }
+
+    /// Consume the polynomial and return the owned backing container.
+    pub fn into_backing(self) -> S::Backing<F> {
+        self.storage
+    }
+
+    /// Number of coefficients.
+    pub fn len(&self) -> usize {
+        S::backing_len::<F>(&self.storage)
+    }
+
+    /// `true` if there are no coefficients.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Gets the size of this polynomial in terms of the number of
     /// coefficients used to describe it.
     pub fn num_coeffs(&self) -> usize {
-        self.values.len()
+        self.len()
     }
 }
 
-impl<F: SerdePrimeField, B> Polynomial<F, B> {
+impl<F, B> Polynomial<F, B, Host> {
+    /// Construct a host-resident polynomial directly from `Vec<F>`.
+    pub fn new(values: Vec<F>) -> Self {
+        Self {
+            storage: values,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Direct host slice accessor.
+    pub fn values(&self) -> &[F] {
+        self.storage.as_slice()
+    }
+
+    /// Direct mutable host slice accessor.
+    pub fn values_mut(&mut self) -> &mut [F] {
+        self.storage.as_mut_slice()
+    }
+
+    /// Consume the polynomial and return the owned `Vec<F>` of host
+    /// coefficients.
+    pub fn into_values(self) -> Vec<F> {
+        self.storage
+    }
+
+    /// Iterate over the values, which are either in coefficient or evaluation
+    /// form depending on the basis `B`.
+    pub fn iter(&self) -> impl Iterator<Item = &F> {
+        self.storage.iter()
+    }
+
+    /// Iterate over the values mutably, which are either in coefficient or
+    /// evaluation form depending on the basis `B`.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut F> {
+        self.storage.iter_mut()
+    }
+}
+
+impl<F, B> Index<usize> for Polynomial<F, B, Host> {
+    type Output = F;
+
+    fn index(&self, index: usize) -> &F {
+        &self.values()[index]
+    }
+}
+
+impl<F, B> IndexMut<usize> for Polynomial<F, B, Host> {
+    fn index_mut(&mut self, index: usize) -> &mut F {
+        &mut self.values_mut()[index]
+    }
+}
+
+impl<F, B> Index<Range<usize>> for Polynomial<F, B, Host> {
+    type Output = [F];
+
+    fn index(&self, index: Range<usize>) -> &[F] {
+        &self.values()[index]
+    }
+}
+
+impl<F, B> Index<RangeFrom<usize>> for Polynomial<F, B, Host> {
+    type Output = [F];
+
+    fn index(&self, index: RangeFrom<usize>) -> &[F] {
+        &self.values()[index]
+    }
+}
+
+impl<F, B> IndexMut<Range<usize>> for Polynomial<F, B, Host> {
+    fn index_mut(&mut self, index: Range<usize>) -> &mut [F] {
+        &mut self.values_mut()[index]
+    }
+}
+
+impl<F, B> IndexMut<RangeFrom<usize>> for Polynomial<F, B, Host> {
+    fn index_mut(&mut self, index: RangeFrom<usize>) -> &mut [F] {
+        &mut self.values_mut()[index]
+    }
+}
+
+impl<F, B> Index<RangeFull> for Polynomial<F, B, Host> {
+    type Output = [F];
+
+    fn index(&self, _index: RangeFull) -> &[F] {
+        self.values()
+    }
+}
+
+impl<F, B> IndexMut<RangeFull> for Polynomial<F, B, Host> {
+    fn index_mut(&mut self, index: RangeFull) -> &mut [F] {
+        &mut self.values_mut()[index]
+    }
+}
+
+impl<F, B> Deref for Polynomial<F, B, Host> {
+    type Target = [F];
+
+    fn deref(&self) -> &[F] {
+        self.values()
+    }
+}
+
+impl<F, B> DerefMut for Polynomial<F, B, Host> {
+    fn deref_mut(&mut self) -> &mut [F] {
+        self.values_mut()
+    }
+}
+
+impl<F: SerdePrimeField, B> Polynomial<F, B, Host> {
     /// Reads polynomial from buffer using `SerdePrimeField::read`.
     pub(crate) fn read<R: io::Read>(reader: &mut R, format: SerdeFormat) -> Self {
         let mut poly_len = [0u8; 4];
         reader.read_exact(&mut poly_len).unwrap();
         let poly_len = u32::from_be_bytes(poly_len);
-        Self {
-            values: (0..poly_len)
-                .map(|_| F::read(reader, format).unwrap())
-                .collect(),
-            _marker: PhantomData,
-        }
+        let values: Vec<F> = (0..poly_len)
+            .map(|_| F::read(reader, format).unwrap())
+            .collect();
+        Self::new(values)
     }
 
     /// Writes polynomial to buffer using `SerdePrimeField::write`.
     pub(crate) fn write<W: io::Write>(&self, writer: &mut W, format: SerdeFormat) {
+        let values = self.values();
         writer
-            .write_all(&(self.values.len() as u32).to_be_bytes())
+            .write_all(&(values.len() as u32).to_be_bytes())
             .unwrap();
-        for value in self.values.iter() {
+        for value in values.iter() {
             value.write(writer, format).unwrap();
         }
     }
@@ -219,15 +327,13 @@ where
         .zip(assigned_denominators.par_chunks(n))
         .map(|(poly, inv_denoms)| {
             debug_assert_eq!(inv_denoms.len(), poly.as_ref().len());
-            Polynomial {
-                values: poly
-                    .as_ref()
+            Polynomial::new(
+                poly.as_ref()
                     .iter()
                     .zip(inv_denoms.iter())
                     .map(|(a, inv_den)| a.numerator() * inv_den.unwrap_or(F::ONE))
                     .collect(),
-                _marker: PhantomData,
-            }
+            )
         })
         .collect();
 
@@ -237,15 +343,13 @@ where
         .zip(assigned_denominators.chunks(n))
         .map(|(poly, inv_denoms)| {
             debug_assert_eq!(inv_denoms.len(), poly.as_ref().len());
-            Polynomial {
-                values: poly
-                    .as_ref()
+            Polynomial::new(
+                poly.as_ref()
                     .iter()
                     .zip(inv_denoms.iter())
                     .map(|(a, inv_den)| a.numerator() * inv_den.unwrap_or(F::ONE))
                     .collect(),
-                _marker: PhantomData,
-            }
+            )
         })
         .collect();
 }
@@ -255,16 +359,14 @@ impl<F: Field> Polynomial<Assigned<F>, LagrangeCoeff> {
         &self,
         inv_denoms: impl Iterator<Item = F> + ExactSizeIterator,
     ) -> Polynomial<F, LagrangeCoeff> {
-        assert_eq!(inv_denoms.len(), self.values.len());
-        Polynomial {
-            values: self
-                .values
-                .iter()
-                .zip(inv_denoms)
-                .map(|(a, inv_den)| a.numerator() * inv_den)
-                .collect(),
-            _marker: self._marker,
-        }
+        let src = self.values();
+        assert_eq!(inv_denoms.len(), src.len());
+        let values: Vec<F> = src
+            .iter()
+            .zip(inv_denoms)
+            .map(|(a, inv_den)| a.numerator() * inv_den)
+            .collect();
+        Polynomial::new(values)
     }
 }
 
@@ -272,8 +374,9 @@ impl<'a, F: Field, B: Basis> Add<&'a Polynomial<F, B>> for Polynomial<F, B> {
     type Output = Polynomial<F, B>;
 
     fn add(mut self, rhs: &'a Polynomial<F, B>) -> Polynomial<F, B> {
-        parallelize(&mut self.values, |lhs, start| {
-            for (lhs, rhs) in lhs.iter_mut().zip(rhs.values[start..].iter()) {
+        let rhs_slice = rhs.values();
+        parallelize(self.values_mut(), |lhs, start| {
+            for (lhs, rhs) in lhs.iter_mut().zip(rhs_slice[start..].iter()) {
                 *lhs += *rhs;
             }
         });
@@ -286,8 +389,9 @@ impl<'a, F: Field, B: Basis> Sub<&'a Polynomial<F, B>> for Polynomial<F, B> {
     type Output = Polynomial<F, B>;
 
     fn sub(mut self, rhs: &'a Polynomial<F, B>) -> Polynomial<F, B> {
-        parallelize(&mut self.values, |lhs, start| {
-            for (lhs, rhs) in lhs.iter_mut().zip(rhs.values[start..].iter()) {
+        let rhs_slice = rhs.values();
+        parallelize(self.values_mut(), |lhs, start| {
+            for (lhs, rhs) in lhs.iter_mut().zip(rhs_slice[start..].iter()) {
                 *lhs -= *rhs;
             }
         });
@@ -299,16 +403,13 @@ impl<'a, F: Field, B: Basis> Sub<&'a Polynomial<F, B>> for Polynomial<F, B> {
 impl<F: Field> Polynomial<F, LagrangeCoeff> {
     /// Rotates the values in a Lagrange basis polynomial by `Rotation`
     pub fn rotate(&self, rotation: Rotation) -> Polynomial<F, LagrangeCoeff> {
-        let mut values = self.values.clone();
+        let mut values = self.values().to_vec();
         if rotation.0 < 0 {
             values.rotate_right((-rotation.0) as usize);
         } else {
             values.rotate_left(rotation.0 as usize);
         }
-        Polynomial {
-            values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(values)
     }
 }
 
@@ -317,16 +418,13 @@ impl<F: Field, B: Basis> Mul<F> for Polynomial<F, B> {
 
     fn mul(mut self, rhs: F) -> Polynomial<F, B> {
         if rhs == F::ZERO {
-            return Polynomial {
-                values: vec![F::ZERO; self.len()],
-                _marker: PhantomData,
-            };
+            return Polynomial::new(vec![F::ZERO; self.len()]);
         }
         if rhs == F::ONE {
             return self;
         }
 
-        parallelize(&mut self.values, |lhs, _| {
+        parallelize(self.values_mut(), |lhs, _| {
             for lhs in lhs.iter_mut() {
                 *lhs *= rhs;
             }
@@ -341,7 +439,7 @@ impl<'a, F: Field, B: Basis> Sub<F> for &'a Polynomial<F, B> {
 
     fn sub(self, rhs: F) -> Polynomial<F, B> {
         let mut res = self.clone();
-        res.values[0] -= rhs;
+        res.values_mut()[0] -= rhs;
         res
     }
 }

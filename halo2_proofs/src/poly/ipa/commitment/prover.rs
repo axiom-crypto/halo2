@@ -80,7 +80,7 @@ pub fn create_proof<
     let mut f = p_prime_blind.0;
 
     // Initialize the vector `p_prime` as the coefficients of the polynomial.
-    let mut p_prime = p_prime_poly.values;
+    let mut p_prime = p_prime_poly.into_values();
     assert_eq!(p_prime.len(), params.n as usize);
 
     // Initialize the vector `b` as the powers of `x_3`. The inner product of

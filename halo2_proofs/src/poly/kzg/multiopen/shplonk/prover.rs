@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::marker::PhantomData;
 use std::ops::MulAssign;
 
 use super::{
@@ -29,9 +28,9 @@ use std::io;
 use crate::multicore::ParallelIterator;
 
 fn div_by_vanishing<F: Field>(poly: Polynomial<F, Coeff>, roots: &[F]) -> Vec<F> {
-    let poly = roots
-        .iter()
-        .fold(poly.values, |poly, point| kate_division(&poly, *point));
+    let poly = roots.iter().fold(poly.into_values(), |poly, point| {
+        kate_division(&poly, *point)
+    });
 
     poly
 }
@@ -45,10 +44,7 @@ impl<'a, C: CurveAffine> Commitment<C::Scalar, PolynomialPointer<'a, C>> {
     fn extend(&self, points: &[C::Scalar]) -> CommitmentExtension<'a, C> {
         let poly = lagrange_interpolate(points, &self.evals()[..]);
 
-        let low_degree_equivalent = Polynomial {
-            values: poly,
-            _marker: PhantomData,
-        };
+        let low_degree_equivalent = Polynomial::new(poly);
 
         CommitmentExtension {
             commitment: self.clone(),
@@ -60,17 +56,17 @@ impl<'a, C: CurveAffine> Commitment<C::Scalar, PolynomialPointer<'a, C>> {
 impl<'a, C: CurveAffine> CommitmentExtension<'a, C> {
     fn linearisation_contribution(&self, u: C::Scalar) -> Polynomial<C::Scalar, Coeff> {
         let p_x = self.commitment.get().poly;
-        let r_eval = eval_polynomial(&self.low_degree_equivalent.values[..], u);
+        let r_eval = eval_polynomial(self.low_degree_equivalent.values(), u);
         p_x - r_eval
     }
 
     fn quotient_contribution(&self) -> Polynomial<C::Scalar, Coeff> {
         let len = self.low_degree_equivalent.len();
         let mut p_x = self.commitment.get().poly.clone();
-        parallelize(&mut p_x.values[0..len], |lhs, start| {
+        parallelize(&mut p_x.values_mut()[0..len], |lhs, start| {
             for (lhs, rhs) in lhs
                 .iter_mut()
-                .zip(self.low_degree_equivalent.values[start..].iter())
+                .zip(self.low_degree_equivalent.values()[start..].iter())
             {
                 *lhs -= *rhs;
             }
@@ -171,10 +167,7 @@ where
             let mut poly = div_by_vanishing(n_x, points);
             poly.resize(self.params.n as usize, E::Fr::ZERO);
 
-            Polynomial {
-                values: poly,
-                _marker: PhantomData,
-            }
+            Polynomial::new(poly)
         };
 
         let intermediate_sets = construct_intermediate_sets(queries).ok_or_else(|| {
@@ -282,7 +275,7 @@ where
         // sanity check
         #[cfg(debug_assertions)]
         {
-            let must_be_zero = eval_polynomial(&l_x.values[..], *u);
+            let must_be_zero = eval_polynomial(l_x.values(), *u);
             assert_eq!(must_be_zero, E::Fr::ZERO);
         }
 
@@ -294,10 +287,7 @@ where
             h_i.mul_assign(z_0_diff_inv)
         }
 
-        let h_x = Polynomial {
-            values: h_x,
-            _marker: PhantomData,
-        };
+        let h_x = Polynomial::new(h_x);
 
         let h = self.params.commit(&h_x, Blind::default()).to_affine();
         transcript.write_point(h)?;

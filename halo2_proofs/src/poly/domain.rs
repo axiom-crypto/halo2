@@ -11,7 +11,7 @@ use super::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation};
 
 use group::ff::{BatchInvert, Field, WithSmallOrderMulGroup};
 
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 /// This structure contains precomputed constants and other details needed for
 /// performing operations on an evaluation domain of size $2^k$ and an extended
@@ -168,10 +168,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     pub fn lagrange_from_vec(&self, values: Vec<F>) -> Polynomial<F, LagrangeCoeff> {
         assert_eq!(values.len(), self.n as usize);
 
-        Polynomial {
-            values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(values)
     }
 
     pub fn lagrange_assigned_from_vec(
@@ -180,10 +177,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     ) -> Polynomial<Assigned<F>, LagrangeCoeff> {
         assert_eq!(values.len(), self.n as usize);
 
-        Polynomial {
-            values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(values)
     }
 
     /// Obtains a polynomial in coefficient form when given a vector of
@@ -192,10 +186,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     pub fn coeff_from_vec(&self, values: Vec<F>) -> Polynomial<F, Coeff> {
         assert_eq!(values.len(), self.n as usize);
 
-        Polynomial {
-            values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(values)
     }
 
     /// Obtains a polynomial in ExtendedLagrange form when given a vector of
@@ -212,16 +203,13 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         let mut transposed = vec![vec![F::ZERO; values.len()]; self.n as usize];
         values.into_iter().enumerate().for_each(|(i, p)| {
             parallelize(&mut transposed, |transposed, start| {
-                for (transposed, p) in transposed.iter_mut().zip(p.values[start..].iter()) {
+                for (transposed, p) in transposed.iter_mut().zip(p.values()[start..].iter()) {
                     transposed[i] = *p;
                 }
             });
         });
 
-        Polynomial {
-            values: transposed.into_iter().flatten().collect(),
-            _marker: PhantomData,
-        }
+        Polynomial::new(transposed.into_iter().flatten().collect())
     }
 
     /// Obtains a polynomial in ExtendedLagrange form when given a vector of
@@ -238,67 +226,46 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         let mut transposed = vec![vec![F::ZERO; values.len()]; self.n as usize];
         values.into_iter().enumerate().for_each(|(i, p)| {
             parallelize(&mut transposed, |transposed, start| {
-                for (transposed, p) in transposed.iter_mut().zip(p.values[start..].iter()) {
+                for (transposed, p) in transposed.iter_mut().zip(p.values()[start..].iter()) {
                     transposed[i] = *p;
                 }
             });
         });
 
-        Polynomial {
-            values: transposed.into_iter().flatten().collect(),
-            _marker: PhantomData,
-        }
+        Polynomial::new(transposed.into_iter().flatten().collect())
     }
 
     /// Returns an empty (zero) polynomial in the coefficient basis
     pub fn empty_coeff(&self) -> Polynomial<F, Coeff> {
-        Polynomial {
-            values: vec![F::ZERO; self.n as usize],
-            _marker: PhantomData,
-        }
+        Polynomial::new(vec![F::ZERO; self.n as usize])
     }
 
     /// Returns an empty (zero) polynomial in the Lagrange coefficient basis
     pub fn empty_lagrange(&self) -> Polynomial<F, LagrangeCoeff> {
-        Polynomial {
-            values: vec![F::ZERO; self.n as usize],
-            _marker: PhantomData,
-        }
+        Polynomial::new(vec![F::ZERO; self.n as usize])
     }
 
     /// Returns an empty (zero) polynomial in the Lagrange coefficient basis, with
     /// deferred inversions.
     pub(crate) fn empty_lagrange_assigned(&self) -> Polynomial<Assigned<F>, LagrangeCoeff> {
-        Polynomial {
-            values: vec![F::ZERO.into(); self.n as usize],
-            _marker: PhantomData,
-        }
+        Polynomial::new(vec![F::ZERO.into(); self.n as usize])
     }
 
     /// Returns a constant polynomial in the Lagrange coefficient basis
     pub fn constant_lagrange(&self, scalar: F) -> Polynomial<F, LagrangeCoeff> {
-        Polynomial {
-            values: vec![scalar; self.n as usize],
-            _marker: PhantomData,
-        }
+        Polynomial::new(vec![scalar; self.n as usize])
     }
 
     /// Returns an empty (zero) polynomial in the extended Lagrange coefficient
     /// basis
     pub fn empty_extended(&self) -> Polynomial<F, ExtendedLagrangeCoeff> {
-        Polynomial {
-            values: vec![F::ZERO; self.extended_len()],
-            _marker: PhantomData,
-        }
+        Polynomial::new(vec![F::ZERO; self.extended_len()])
     }
 
     /// Returns a constant polynomial in the extended Lagrange coefficient
     /// basis
     pub fn constant_extended(&self, scalar: F) -> Polynomial<F, ExtendedLagrangeCoeff> {
-        Polynomial {
-            values: vec![scalar; self.extended_len()],
-            _marker: PhantomData,
-        }
+        Polynomial::new(vec![scalar; self.extended_len()])
     }
 
     /// This takes us from an n-length vector into the coefficient form.
@@ -306,15 +273,12 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     /// This function will panic if the provided vector is not the correct
     /// length.
     pub fn lagrange_to_coeff(&self, mut a: Polynomial<F, LagrangeCoeff>) -> Polynomial<F, Coeff> {
-        assert_eq!(a.values.len(), 1 << self.k);
+        assert_eq!(a.values().len(), 1 << self.k);
 
         // Perform inverse FFT to obtain the polynomial in coefficient form
-        self.ifft(&mut a.values, self.omega_inv, self.k, self.ifft_divisor);
+        self.ifft(a.backing_mut(), self.omega_inv, self.k, self.ifft_divisor);
 
-        Polynomial {
-            values: a.values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(a.into_values())
     }
 
     /// This takes us from an n-length coefficient vector into a coset of the extended
@@ -323,19 +287,16 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         &self,
         p: &Polynomial<F, Coeff>,
     ) -> Polynomial<F, ExtendedLagrangeCoeff> {
-        assert_eq!(p.values.len(), 1 << self.k);
+        assert_eq!(p.values().len(), 1 << self.k);
 
         let mut a = Vec::with_capacity(self.extended_len());
-        a.extend(&p.values);
+        a.extend(p.values());
 
         self.distribute_powers_zeta(&mut a, true);
         a.resize(self.extended_len(), F::ZERO);
         self.fft_inner(&mut a, self.extended_omega, self.extended_k, false);
 
-        Polynomial {
-            values: a,
-            _marker: PhantomData,
-        }
+        Polynomial::new(a)
     }
 
     /// This takes us from an n-length coefficient vector into parts of the
@@ -350,7 +311,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         &self,
         a: &Polynomial<F, Coeff>,
     ) -> Vec<Polynomial<F, LagrangeCoeff>> {
-        assert_eq!(a.values.len(), 1 << self.k);
+        assert_eq!(a.values().len(), 1 << self.k);
 
         let num_parts = self.extended_len() >> self.k;
         let mut extended_omega_factor = F::ONE;
@@ -375,7 +336,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         &self,
         a: &[Polynomial<F, Coeff>],
     ) -> Vec<Vec<Polynomial<F, LagrangeCoeff>>> {
-        assert_eq!(a[0].values.len(), 1 << self.k);
+        assert_eq!(a[0].values().len(), 1 << self.k);
 
         let mut extended_omega_factor = F::ONE;
         let num_parts = self.extended_len() >> self.k;
@@ -402,16 +363,13 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         mut a: Polynomial<F, Coeff>,
         extended_omega_factor: F,
     ) -> Polynomial<F, LagrangeCoeff> {
-        assert_eq!(a.values.len(), 1 << self.k);
+        assert_eq!(a.values().len(), 1 << self.k);
 
-        self.distribute_powers(&mut a.values, self.g_coset * extended_omega_factor);
+        self.distribute_powers(a.values_mut(), self.g_coset * extended_omega_factor);
         let data = self.get_fft_data(a.len());
-        best_fft(&mut a.values, self.omega, self.k, data, false);
+        best_fft(a.values_mut(), self.omega, self.k, data, false);
 
-        Polynomial {
-            values: a.values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(a.into_values())
     }
 
     /// Rotate the extended domain polynomial over the original domain.
@@ -425,9 +383,9 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         let mut poly = poly.clone();
 
         if rotation.0 >= 0 {
-            poly.values.rotate_left(new_rotation);
+            poly.values_mut().rotate_left(new_rotation);
         } else {
-            poly.values.rotate_right(new_rotation);
+            poly.values_mut().rotate_right(new_rotation);
         }
 
         poly
@@ -440,11 +398,11 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     /// length.
     // TODO/FIXME: caller should be responsible for truncating
     pub fn extended_to_coeff(&self, mut a: Polynomial<F, ExtendedLagrangeCoeff>) -> Vec<F> {
-        assert_eq!(a.values.len(), self.extended_len());
+        assert_eq!(a.values().len(), self.extended_len());
 
         // Inverse FFT
         self.ifft(
-            &mut a.values,
+            a.backing_mut(),
             self.extended_omega_inv,
             self.extended_k,
             self.extended_ifft_divisor,
@@ -452,15 +410,15 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
 
         // Distribute powers to move from coset; opposite from the
         // transformation we performed earlier.
-        self.distribute_powers_zeta(&mut a.values, false);
+        self.distribute_powers_zeta(a.values_mut(), false);
 
         // Truncate it to match the size of the quotient polynomial; the
         // evaluation domain might be slightly larger than necessary because
         // it always lies on a power-of-two boundary.
-        a.values
+        a.backing_mut()
             .truncate((&self.n * self.quotient_poly_degree) as usize);
 
-        a.values
+        a.into_values()
     }
 
     /// This takes us from the a list of lagrange-based polynomials with
@@ -495,7 +453,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
                 let mut transposed = vec![vec![F::ZERO; a_parts.len()]; self.n as usize];
                 a_parts.into_iter().enumerate().for_each(|(j, p)| {
                     parallelize(&mut transposed, |transposed, start| {
-                        for (transposed, p) in transposed.iter_mut().zip(p.values[start..].iter()) {
+                        for (transposed, p) in transposed.iter_mut().zip(p.values()[start..].iter())
+                        {
                             transposed[j] = *p;
                         }
                     });
@@ -521,7 +480,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             data,
             false,
         );
-        parallelize(&mut result_poly.values, |values, start| {
+        parallelize(result_poly.values_mut(), |values, start| {
             for (value, other) in values.iter_mut().zip(result[start..].iter()) {
                 *value += other;
             }
@@ -535,21 +494,18 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         &self,
         mut a: Polynomial<F, ExtendedLagrangeCoeff>,
     ) -> Polynomial<F, ExtendedLagrangeCoeff> {
-        assert_eq!(a.values.len(), self.extended_len());
+        assert_eq!(a.values().len(), self.extended_len());
 
         // Divide to obtain the quotient polynomial in the coset evaluation
         // domain.
-        parallelize(&mut a.values, |h, mut index| {
+        parallelize(a.values_mut(), |h, mut index| {
             for h in h {
                 *h *= &self.t_evaluations[index % self.t_evaluations.len()];
                 index += 1;
             }
         });
 
-        Polynomial {
-            values: a.values,
-            _marker: PhantomData,
-        }
+        Polynomial::new(a.into_values())
     }
 
     /// Given a slice of group elements `[a_0, a_1, a_2, ...]`, this returns
@@ -833,7 +789,7 @@ fn test_coeff_to_extended_part() {
         let parts = domain.coeff_to_extended_parts(&poly);
         domain.lagrange_vec_to_extended(parts)
     };
-    assert_eq!(want.values, got.values);
+    assert_eq!(want.values(), got.values());
 }
 
 #[test]
@@ -913,7 +869,7 @@ fn test_lagrange_vecs_to_extended() {
         );
         let poly = {
             let mut p = domain.empty_extended();
-            p.values = poly;
+            p = Polynomial::new(poly);
             p
         };
         want = want + &poly;
@@ -921,7 +877,7 @@ fn test_lagrange_vecs_to_extended() {
     }
     poly_lagrange_vecs.reverse();
     let got = domain.lagrange_vecs_to_extended(poly_lagrange_vecs);
-    assert_eq!(want.values, got.values);
+    assert_eq!(want.values(), got.values());
 }
 
 #[test]
@@ -970,7 +926,7 @@ fn bench_lagrange_vecs_to_extended() {
         );
         let poly = {
             let mut p = domain.empty_extended();
-            p.values = poly;
+            p = Polynomial::new(poly);
             p
         };
         poly_extended_vecs.push(poly);
