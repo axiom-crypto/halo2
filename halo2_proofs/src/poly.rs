@@ -17,6 +17,7 @@ use crate::multicore::{
     IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator, ParallelSlice,
 };
 use group::ff::{BatchInvert, Field};
+use halo2curves::serde::SerdeObject;
 
 /// Generic commitment scheme structures
 pub mod commitment;
@@ -273,15 +274,65 @@ impl<F, B> DerefMut for Polynomial<F, B, Host> {
     }
 }
 
-impl<F: SerdePrimeField, B> Polynomial<F, B, Host> {
+impl<F: SerdePrimeField, B> Polynomial<F, B> {
     /// Reads polynomial from buffer using `SerdePrimeField::read`.
     pub(crate) fn read<R: io::Read>(reader: &mut R, format: SerdeFormat) -> Self {
         let mut poly_len = [0u8; 4];
         reader.read_exact(&mut poly_len).unwrap();
-        let poly_len = u32::from_be_bytes(poly_len);
-        let values: Vec<F> = (0..poly_len)
-            .map(|_| F::read(reader, format).unwrap())
-            .collect();
+        let poly_len = u32::from_be_bytes(poly_len) as usize;
+
+        let values = match format {
+            // Raw formats store `F`'s in-memory representation verbatim, so read
+            // the whole polynomial into the destination `Vec<F>` with a single
+            // `read_exact` rather than ~4 per-element `Read` calls.
+            SerdeFormat::RawBytes | SerdeFormat::RawBytesUnchecked => {
+                let elem_size = std::mem::size_of::<F>();
+                // The direct read is only sound if the serialized element width
+                // matches `F`'s in-memory size.
+                assert_eq!(
+                    elem_size,
+                    F::ZERO.to_raw_bytes().len(),
+                    "raw element size does not match in-memory size of F"
+                );
+
+                // Read into uninitialized spare capacity to avoid the zero-fill
+                // of `vec![F::ZERO; n]`.
+                let mut values: Vec<F> = Vec::with_capacity(poly_len);
+                // SAFETY: `with_capacity` reserved `poly_len * elem_size` bytes;
+                // a `*mut u8` view is always well-aligned and `read_exact` fully
+                // initializes the region. On little-endian targets those bytes
+                // are then valid `F` -- the layout/endianness assumption
+                // `read_raw`/`from_raw_bytes` already rely on.
+                let dst = unsafe {
+                    std::slice::from_raw_parts_mut(
+                        values.as_mut_ptr() as *mut u8,
+                        poly_len * elem_size,
+                    )
+                };
+                reader.read_exact(dst).unwrap();
+
+                // `RawBytes` additionally requires each element to be < modulus;
+                // check in parallel since the bytes are already in memory.
+                if matches!(format, SerdeFormat::RawBytes) {
+                    #[cfg(feature = "multicore")]
+                    let all_valid = dst
+                        .par_chunks_exact(elem_size)
+                        .all(|chunk| <F as SerdeObject>::from_raw_bytes(chunk).is_some());
+                    #[cfg(not(feature = "multicore"))]
+                    let all_valid = dst
+                        .chunks_exact(elem_size)
+                        .all(|chunk| <F as SerdeObject>::from_raw_bytes(chunk).is_some());
+                    assert!(all_valid, "invalid field element: not less than modulus");
+                }
+                // SAFETY: `read_exact` filled all `poly_len` elements above.
+                unsafe { values.set_len(poly_len) };
+                values
+            }
+            SerdeFormat::Processed => (0..poly_len)
+                .map(|_| F::read(reader, format).unwrap())
+                .collect(),
+        };
+
         Self::new(values)
     }
 
