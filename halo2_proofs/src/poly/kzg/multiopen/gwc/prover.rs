@@ -13,7 +13,6 @@ use pairing::Engine;
 use rand_core::RngCore;
 use std::fmt::Debug;
 use std::io;
-use std::marker::PhantomData;
 
 /// Concrete KZG prover with GWC variant
 #[derive(Debug)]
@@ -76,10 +75,7 @@ where
                 .unwrap();
 
             let poly_batch = &poly_batch - eval_batch;
-            let witness_poly = Polynomial {
-                values: kate_division(&poly_batch.values, z),
-                _marker: PhantomData,
-            };
+            let witness_poly = Polynomial::new(kate_division(poly_batch.values(), z));
             let w = self
                 .params
                 .commit(&witness_poly, Blind::default())
