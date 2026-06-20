@@ -211,7 +211,11 @@ impl<C: CurveAffine> VerifyingKey<C> {
                     .unwrap_or(0))
     }
 
-    fn from_parts(
+    /// Assembles a [`VerifyingKey`] from its constituent parts, computing the
+    /// cached `cs_degree` and `transcript_repr` internally. Additive constructor
+    /// exposed (was private) for external (e.g. GPU) keygen that assembles the
+    /// canonical verifying key from independently-computed pieces.
+    pub fn from_parts(
         domain: EvaluationDomain<C::Scalar>,
         fixed_commitments: Vec<C>,
         permutation: permutation::VerifyingKey<C>,
@@ -352,6 +356,33 @@ impl<C: CurveAffine> ProvingKey<C> {
     /// Returns the permutation [`permutation::ProvingKey`].
     pub fn permutation(&self) -> &permutation::ProvingKey<C> {
         &self.permutation
+    }
+
+    /// Assembles a [`ProvingKey`] from its constituent parts. The optimized
+    /// evaluation data structure (`ev`) is derived from `vk.cs()`, exactly as in
+    /// [`ProvingKey::read`]. Additive constructor for external (e.g. GPU) keygen
+    /// that produces the canonical proving key from independently-computed pieces.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_parts(
+        vk: VerifyingKey<C>,
+        l0: Polynomial<C::Scalar, Coeff>,
+        l_last: Polynomial<C::Scalar, Coeff>,
+        l_active_row: Polynomial<C::Scalar, Coeff>,
+        fixed_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
+        fixed_polys: Vec<Polynomial<C::Scalar, Coeff>>,
+        permutation: permutation::ProvingKey<C>,
+    ) -> Self {
+        let ev = Evaluator::new(vk.cs());
+        ProvingKey {
+            vk,
+            l0,
+            l_last,
+            l_active_row,
+            fixed_values,
+            fixed_polys,
+            permutation,
+            ev,
+        }
     }
 }
 
