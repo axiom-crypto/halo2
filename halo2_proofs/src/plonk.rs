@@ -299,6 +299,14 @@ impl<C: CurveAffine> VerifyingKey<C> {
     pub fn transcript_repr(&self) -> C::Scalar {
         self.transcript_repr
     }
+
+    /// Returns whether selector compression was applied when this key was
+    /// generated. Needed by out-of-crate keygen (e.g. the GPU `keygen_pk`,
+    /// which rebuilds the proving key from an existing `VerifyingKey` and must
+    /// reproduce the vk's selector-compression mode).
+    pub fn compress_selectors(&self) -> bool {
+        self.compress_selectors
+    }
 }
 
 /// Minimal representation of a verification key that can be used to identify
