@@ -124,7 +124,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
 
 /// The proving key for a single permutation argument.
 #[derive(Clone, Debug)]
-pub(crate) struct ProvingKey<C: CurveAffine> {
+pub struct ProvingKey<C: CurveAffine> {
     permutations: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
     pub(super) polys: Vec<Polynomial<C::Scalar, Coeff>>,
 }
@@ -154,5 +154,15 @@ impl<C: CurveAffine> ProvingKey<C> {
     /// Gets the total number of bytes in the serialization of `self`
     pub(super) fn bytes_length(&self) -> usize {
         polynomial_slice_byte_length(&self.permutations) + polynomial_slice_byte_length(&self.polys)
+    }
+
+    /// Returns the permutation polynomials in the Lagrange (evaluation) basis.
+    pub fn permutations(&self) -> &[Polynomial<C::Scalar, LagrangeCoeff>] {
+        &self.permutations
+    }
+
+    /// Returns the permutation polynomials in the coefficient basis.
+    pub fn polys(&self) -> &[Polynomial<C::Scalar, Coeff>] {
+        &self.polys
     }
 }

@@ -323,6 +323,38 @@ pub struct ProvingKey<C: CurveAffine> {
     ev: Evaluator<C>,
 }
 
+impl<C: CurveAffine> ProvingKey<C> {
+    /// Returns the coefficient-basis polynomial `l0` (1 at the first row, 0 elsewhere).
+    pub fn l0(&self) -> &Polynomial<C::Scalar, Coeff> {
+        &self.l0
+    }
+
+    /// Returns the coefficient-basis polynomial `l_last` (1 at the last usable row, 0 elsewhere).
+    pub fn l_last(&self) -> &Polynomial<C::Scalar, Coeff> {
+        &self.l_last
+    }
+
+    /// Returns the coefficient-basis polynomial `l_active_row` (1 on active rows, 0 on blinding rows).
+    pub fn l_active_row(&self) -> &Polynomial<C::Scalar, Coeff> {
+        &self.l_active_row
+    }
+
+    /// Returns the fixed column polynomials in the Lagrange (evaluation) basis.
+    pub fn fixed_values(&self) -> &[Polynomial<C::Scalar, LagrangeCoeff>] {
+        &self.fixed_values
+    }
+
+    /// Returns the fixed column polynomials in the coefficient basis.
+    pub fn fixed_polys(&self) -> &[Polynomial<C::Scalar, Coeff>] {
+        &self.fixed_polys
+    }
+
+    /// Returns the permutation [`permutation::ProvingKey`].
+    pub fn permutation(&self) -> &permutation::ProvingKey<C> {
+        &self.permutation
+    }
+}
+
 impl<C: CurveAffine> ProvingKey<C>
 where
     C::Scalar: FromUniformBytes<64>,
