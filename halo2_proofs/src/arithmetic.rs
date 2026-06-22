@@ -294,7 +294,7 @@ pub(crate) fn evaluate_vanishing_polynomial<F: Field>(roots: &[F], z: F) -> F {
     }
 }
 
-pub(crate) fn powers<F: Field>(base: F) -> impl Iterator<Item = F> {
+pub fn powers<F: Field>(base: F) -> impl Iterator<Item = F> {
     std::iter::successors(Some(F::ONE), move |power| Some(base * power))
 }
 
