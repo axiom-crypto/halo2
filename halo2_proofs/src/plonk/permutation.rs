@@ -88,6 +88,12 @@ pub struct VerifyingKey<C: CurveAffine> {
 }
 
 impl<C: CurveAffine> VerifyingKey<C> {
+    /// Assembles a permutation [`VerifyingKey`] from its sigma-polynomial
+    /// commitments. Additive constructor for external (e.g. GPU) keygen.
+    pub fn from_commitments(commitments: Vec<C>) -> Self {
+        VerifyingKey { commitments }
+    }
+
     /// Returns commitments of sigma polynomials
     pub fn commitments(&self) -> &Vec<C> {
         &self.commitments
@@ -124,7 +130,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
 
 /// The proving key for a single permutation argument.
 #[derive(Clone, Debug)]
-pub(crate) struct ProvingKey<C: CurveAffine> {
+pub struct ProvingKey<C: CurveAffine> {
     permutations: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
     pub(super) polys: Vec<Polynomial<C::Scalar, Coeff>>,
 }
@@ -151,8 +157,31 @@ where
 }
 
 impl<C: CurveAffine> ProvingKey<C> {
+    /// Assembles a permutation [`ProvingKey`] from the permutation polynomials
+    /// in the Lagrange (evaluation) basis and their coefficient-basis
+    /// counterparts. Additive constructor for external (e.g. GPU) keygen.
+    pub fn from_parts(
+        permutations: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
+        polys: Vec<Polynomial<C::Scalar, Coeff>>,
+    ) -> Self {
+        ProvingKey {
+            permutations,
+            polys,
+        }
+    }
+
     /// Gets the total number of bytes in the serialization of `self`
     pub(super) fn bytes_length(&self) -> usize {
         polynomial_slice_byte_length(&self.permutations) + polynomial_slice_byte_length(&self.polys)
+    }
+
+    /// Returns the permutation polynomials in the Lagrange (evaluation) basis.
+    pub fn permutations(&self) -> &[Polynomial<C::Scalar, LagrangeCoeff>] {
+        &self.permutations
+    }
+
+    /// Returns the permutation polynomials in the coefficient basis.
+    pub fn polys(&self) -> &[Polynomial<C::Scalar, Coeff>] {
+        &self.polys
     }
 }

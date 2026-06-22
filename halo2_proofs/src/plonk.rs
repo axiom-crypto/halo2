@@ -211,7 +211,11 @@ impl<C: CurveAffine> VerifyingKey<C> {
                     .unwrap_or(0))
     }
 
-    fn from_parts(
+    /// Assembles a [`VerifyingKey`] from its constituent parts, computing the
+    /// cached `cs_degree` and `transcript_repr` internally. Additive constructor
+    /// exposed (was private) for external (e.g. GPU) keygen that assembles the
+    /// canonical verifying key from independently-computed pieces.
+    pub fn from_parts(
         domain: EvaluationDomain<C::Scalar>,
         fixed_commitments: Vec<C>,
         permutation: permutation::VerifyingKey<C>,
@@ -295,6 +299,14 @@ impl<C: CurveAffine> VerifyingKey<C> {
     pub fn transcript_repr(&self) -> C::Scalar {
         self.transcript_repr
     }
+
+    /// Returns whether selector compression was applied when this key was
+    /// generated. Needed by out-of-crate keygen (e.g. the GPU `keygen_pk`,
+    /// which rebuilds the proving key from an existing `VerifyingKey` and must
+    /// reproduce the vk's selector-compression mode).
+    pub fn compress_selectors(&self) -> bool {
+        self.compress_selectors
+    }
 }
 
 /// Minimal representation of a verification key that can be used to identify
@@ -321,6 +333,65 @@ pub struct ProvingKey<C: CurveAffine> {
     fixed_polys: Vec<Polynomial<C::Scalar, Coeff>>,
     permutation: permutation::ProvingKey<C>,
     ev: Evaluator<C>,
+}
+
+impl<C: CurveAffine> ProvingKey<C> {
+    /// Returns the coefficient-basis polynomial `l0` (1 at the first row, 0 elsewhere).
+    pub fn l0(&self) -> &Polynomial<C::Scalar, Coeff> {
+        &self.l0
+    }
+
+    /// Returns the coefficient-basis polynomial `l_last` (1 at the last usable row, 0 elsewhere).
+    pub fn l_last(&self) -> &Polynomial<C::Scalar, Coeff> {
+        &self.l_last
+    }
+
+    /// Returns the coefficient-basis polynomial `l_active_row` (1 on active rows, 0 on blinding rows).
+    pub fn l_active_row(&self) -> &Polynomial<C::Scalar, Coeff> {
+        &self.l_active_row
+    }
+
+    /// Returns the fixed column polynomials in the Lagrange (evaluation) basis.
+    pub fn fixed_values(&self) -> &[Polynomial<C::Scalar, LagrangeCoeff>] {
+        &self.fixed_values
+    }
+
+    /// Returns the fixed column polynomials in the coefficient basis.
+    pub fn fixed_polys(&self) -> &[Polynomial<C::Scalar, Coeff>] {
+        &self.fixed_polys
+    }
+
+    /// Returns the permutation [`permutation::ProvingKey`].
+    pub fn permutation(&self) -> &permutation::ProvingKey<C> {
+        &self.permutation
+    }
+
+    /// Assembles a [`ProvingKey`] from its constituent parts. The optimized
+    /// evaluation data structure (`ev`) is derived from `vk.cs()`, exactly as in
+    /// [`ProvingKey::read`]. Additive constructor for external (e.g. GPU) keygen
+    /// that produces the canonical proving key from independently-computed pieces.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_parts(
+        vk: VerifyingKey<C>,
+        l0: Polynomial<C::Scalar, Coeff>,
+        l_last: Polynomial<C::Scalar, Coeff>,
+        l_active_row: Polynomial<C::Scalar, Coeff>,
+        fixed_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
+        fixed_polys: Vec<Polynomial<C::Scalar, Coeff>>,
+        permutation: permutation::ProvingKey<C>,
+    ) -> Self {
+        let ev = Evaluator::new(vk.cs());
+        ProvingKey {
+            vk,
+            l0,
+            l_last,
+            l_active_row,
+            fixed_values,
+            fixed_polys,
+            permutation,
+            ev,
+        }
+    }
 }
 
 impl<C: CurveAffine> ProvingKey<C>

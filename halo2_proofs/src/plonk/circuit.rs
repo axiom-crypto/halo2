@@ -2420,6 +2420,22 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn constants(&self) -> &Vec<Column<Fixed>> {
         &self.constants
     }
+
+    /// Returns the number of distinct queries made so far for each advice column.
+    pub fn num_advice_queries(&self) -> &Vec<usize> {
+        &self.num_advice_queries
+    }
+
+    /// Returns the cached map from virtual selectors to the concrete fixed columns
+    /// they were compressed into.
+    pub fn selector_map(&self) -> &Vec<Column<Fixed>> {
+        &self.selector_map
+    }
+
+    /// Returns the explicitly requested minimum degree of the constraint system, if any.
+    pub fn minimum_degree(&self) -> Option<usize> {
+        self.minimum_degree
+    }
 }
 
 /// Exposes the "virtual cells" that can be queried while creating a custom gate or lookup
