@@ -39,10 +39,7 @@ pub fn verify_proof<'params, C: CurveAffine, E: EncodedChallenge<C>, T: Transcri
         rounds.push((l, r, u_j, /* to be inverted */ u_j, u_j_packed));
     }
 
-    rounds
-        .iter_mut()
-        .map(|&mut (_, _, _, ref mut u_j, _)| u_j)
-        .batch_invert();
+    rounds.iter_mut().map(|&mut (_, _, _, ref mut u_j, _)| u_j).batch_invert();
 
     // This is the left-hand side of the verifier equation.
     // P' + \sum([u_j^{-1}] L_j) + \sum([u_j] R_j)
@@ -78,12 +75,7 @@ pub fn verify_proof<'params, C: CurveAffine, E: EncodedChallenge<C>, T: Transcri
     msm.add_to_u_scalar(neg_c * &b * &z);
     msm.add_to_w_scalar(-f);
 
-    let guard = GuardIPA {
-        msm,
-        neg_c,
-        u,
-        u_packed,
-    };
+    let guard = GuardIPA { msm, neg_c, u, u_packed };
 
     Ok(guard)
 }

@@ -23,14 +23,7 @@ impl<'a, C: CurveAffine> MSMIPA<'a, C> {
         let u_scalar = None;
         let other = BTreeMap::new();
 
-        Self {
-            g_scalars,
-            w_scalar,
-            u_scalar,
-            other,
-
-            params,
-        }
+        Self { g_scalars, w_scalar, u_scalar, other, params }
     }
 
     /// Add another multiexp into this one
@@ -143,11 +136,7 @@ impl<'a, C: CurveAffine> MSM<C> for MSMIPA<'a, C> {
         let mut bases: Vec<C> = Vec::with_capacity(len);
 
         scalars.extend(self.other.values().map(|(scalar, _)| scalar));
-        bases.extend(
-            self.other
-                .iter()
-                .map(|(x, (_, y))| C::from_xy(*x, *y).unwrap()),
-        );
+        bases.extend(self.other.iter().map(|(x, (_, y))| C::from_xy(*x, *y).unwrap()));
 
         if let Some(w_scalar) = self.w_scalar {
             scalars.push(w_scalar);
@@ -170,10 +159,7 @@ impl<'a, C: CurveAffine> MSM<C> for MSMIPA<'a, C> {
     }
 
     fn bases(&self) -> Vec<C::CurveExt> {
-        self.other
-            .iter()
-            .map(|(x, (_, y))| C::from_xy(*x, *y).unwrap().into())
-            .collect()
+        self.other.iter().map(|(x, (_, y))| C::from_xy(*x, *y).unwrap().into()).collect()
     }
 
     fn scalars(&self) -> Vec<C::Scalar> {

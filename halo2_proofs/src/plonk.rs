@@ -113,10 +113,7 @@ where
         let mut version_byte = [0u8; 1];
         reader.read_exact(&mut version_byte)?;
         if 0x02 != version_byte[0] {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "unexpected version byte",
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "unexpected version byte"));
         }
         let mut k = [0u8; 4];
         reader.read_exact(&mut k)?;
@@ -139,9 +136,8 @@ where
         reader.read_exact(&mut num_fixed_columns)?;
         let num_fixed_columns = u32::from_le_bytes(num_fixed_columns);
 
-        let fixed_commitments: Vec<_> = (0..num_fixed_columns)
-            .map(|_| C::read(reader, format))
-            .collect::<io::Result<_>>()?;
+        let fixed_commitments: Vec<_> =
+            (0..num_fixed_columns).map(|_| C::read(reader, format)).collect::<io::Result<_>>()?;
 
         let permutation = permutation::VerifyingKey::read(reader, &cs.permutation, format)?;
 
@@ -204,11 +200,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
         8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
             + self.permutation.bytes_length()
             + self.selectors.len()
-                * (self
-                    .selectors
-                    .get(0)
-                    .map(|selector| (selector.len() + 7) / 8)
-                    .unwrap_or(0))
+                * (self.selectors.get(0).map(|selector| (selector.len() + 7) / 8).unwrap_or(0))
     }
 
     /// Assembles a [`VerifyingKey`] from its constituent parts, computing the
@@ -241,10 +233,8 @@ impl<C: CurveAffine> VerifyingKey<C> {
             compress_selectors,
         };
 
-        let mut hasher = Blake2bParams::new()
-            .hash_length(64)
-            .personal(b"Halo2-Verify-Key")
-            .to_state();
+        let mut hasher =
+            Blake2bParams::new().hash_length(64).personal(b"Halo2-Verify-Key").to_state();
 
         let s = format!("{:?}", vk.pinned());
 
@@ -381,16 +371,7 @@ impl<C: CurveAffine> ProvingKey<C> {
         permutation: permutation::ProvingKey<C>,
     ) -> Self {
         let ev = Evaluator::new(vk.cs());
-        ProvingKey {
-            vk,
-            l0,
-            l_last,
-            l_active_row,
-            fixed_values,
-            fixed_polys,
-            permutation,
-            ev,
-        }
+        ProvingKey { vk, l0, l_last, l_active_row, fixed_values, fixed_polys, permutation, ev }
     }
 }
 
@@ -469,16 +450,7 @@ where
         let fixed_polys = read_polynomial_vec(reader, format);
         let permutation = permutation::ProvingKey::read(reader, format);
         let ev = Evaluator::new(vk.cs());
-        Ok(Self {
-            vk,
-            l0,
-            l_last,
-            l_active_row,
-            fixed_values,
-            fixed_polys,
-            permutation,
-            ev,
-        })
+        Ok(Self { vk, l0, l_last, l_active_row, fixed_values, fixed_polys, permutation, ev })
     }
 
     /// Writes a proving key to a vector of bytes using [`Self::write`].

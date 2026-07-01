@@ -44,10 +44,7 @@ pub trait Transcript<C: CurveAffine, E: EncodedChallenge<C>> {
 
     /// Squeeze a typed challenge (in the scalar field) from the transcript.
     fn squeeze_challenge_scalar<T>(&mut self) -> ChallengeScalar<C, T> {
-        ChallengeScalar {
-            inner: self.squeeze_challenge().get_scalar(),
-            _marker: PhantomData,
-        }
+        ChallengeScalar { inner: self.squeeze_challenge().get_scalar(), _marker: PhantomData }
     }
 
     /// Writing the point to the transcript without writing it to the proof,
@@ -122,10 +119,7 @@ where
     /// Initialize a transcript given an input buffer.
     fn init(reader: R) -> Self {
         Blake2bRead {
-            state: Blake2bParams::new()
-                .hash_length(64)
-                .personal(b"Halo2-Transcript")
-                .to_state(),
+            state: Blake2bParams::new().hash_length(64).personal(b"Halo2-Transcript").to_state(),
             reader,
             _marker: PhantomData,
         }
@@ -141,11 +135,7 @@ where
     fn init(reader: R) -> Self {
         let mut state = Keccak256::new();
         state.update(b"Halo2-Transcript");
-        Keccak256Read {
-            state,
-            reader,
-            _marker: PhantomData,
-        }
+        Keccak256Read { state, reader, _marker: PhantomData }
     }
 }
 
@@ -169,10 +159,7 @@ where
         let mut data = <C::Scalar as PrimeField>::Repr::default();
         self.reader.read_exact(data.as_mut())?;
         let scalar: C::Scalar = Option::from(C::Scalar::from_repr(data)).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                "invalid field element encoding in proof",
-            )
+            io::Error::new(io::ErrorKind::Other, "invalid field element encoding in proof")
         })?;
         self.common_scalar(scalar)?;
 
@@ -200,10 +187,7 @@ where
         let mut data = <C::Scalar as PrimeField>::Repr::default();
         self.reader.read_exact(data.as_mut())?;
         let scalar: C::Scalar = Option::from(C::Scalar::from_repr(data)).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                "invalid field element encoding in proof",
-            )
+            io::Error::new(io::ErrorKind::Other, "invalid field element encoding in proof")
         })?;
         self.common_scalar(scalar)?;
 
@@ -312,10 +296,7 @@ where
     /// Initialize a transcript given an output buffer.
     fn init(writer: W) -> Self {
         Blake2bWrite {
-            state: Blake2bParams::new()
-                .hash_length(64)
-                .personal(b"Halo2-Transcript")
-                .to_state(),
+            state: Blake2bParams::new().hash_length(64).personal(b"Halo2-Transcript").to_state(),
             writer,
             _marker: PhantomData,
         }
@@ -336,11 +317,7 @@ where
     fn init(writer: W) -> Self {
         let mut state = Keccak256::new();
         state.update(b"Halo2-Transcript");
-        Keccak256Write {
-            state,
-            writer,
-            _marker: PhantomData,
-        }
+        Keccak256Write { state, writer, _marker: PhantomData }
     }
 
     /// Conclude the interaction and return the output buffer (writer).
@@ -497,10 +474,7 @@ pub trait EncodedChallenge<C: CurveAffine> {
 
     /// Cast an encoded challenge as a typed `ChallengeScalar`.
     fn as_challenge_scalar<T>(&self) -> ChallengeScalar<C, T> {
-        ChallengeScalar {
-            inner: self.get_scalar(),
-            _marker: PhantomData,
-        }
+        ChallengeScalar { inner: self.get_scalar(), _marker: PhantomData }
     }
 }
 

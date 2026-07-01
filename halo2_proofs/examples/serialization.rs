@@ -67,17 +67,7 @@ impl StandardPlonkConfig {
             },
         );
 
-        StandardPlonkConfig {
-            a,
-            b,
-            c,
-            q_a,
-            q_b,
-            q_c,
-            q_ab,
-            constant,
-            instance,
-        }
+        StandardPlonkConfig { a, b, c, q_a, q_b, q_c, q_ab, constant, instance }
     }
 }
 
@@ -110,13 +100,9 @@ impl Circuit<Fr> for StandardPlonk {
                 region.assign_fixed(config.q_a, 0, -Fr::one());
 
                 region.assign_advice(config.a, 1, Value::known(-Fr::from(5u64)));
-                for (idx, column) in (1..).zip([
-                    config.q_a,
-                    config.q_b,
-                    config.q_c,
-                    config.q_ab,
-                    config.constant,
-                ]) {
+                for (idx, column) in
+                    (1..).zip([config.q_a, config.q_b, config.q_c, config.q_ab, config.constant])
+                {
                     region.assign_fixed(column, 1, Fr::from(idx as u64));
                 }
 
@@ -161,14 +147,7 @@ fn main() {
         _,
         Blake2bWrite<Vec<u8>, G1Affine, Challenge255<_>>,
         _,
-    >(
-        &params,
-        &pk,
-        &[circuit],
-        &[instances],
-        OsRng,
-        &mut transcript,
-    )
+    >(&params, &pk, &[circuit], &[instances], OsRng, &mut transcript)
     .expect("prover should not fail");
     let proof = transcript.finalize();
 
@@ -180,12 +159,6 @@ fn main() {
         Challenge255<G1Affine>,
         Blake2bRead<&[u8], G1Affine, Challenge255<G1Affine>>,
         SingleStrategy<'_, Bn256>,
-    >(
-        &params,
-        pk.get_vk(),
-        strategy,
-        &[instances],
-        &mut transcript
-    )
+    >(&params, pk.get_vk(), strategy, &[instances], &mut transcript)
     .is_ok());
 }

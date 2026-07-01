@@ -76,10 +76,7 @@ where
 
             let poly_batch = &poly_batch - eval_batch;
             let witness_poly = Polynomial::new(kate_division(poly_batch.values(), z));
-            let w = self
-                .params
-                .commit(&witness_poly, Blind::default())
-                .to_affine();
+            let w = self.params.commit(&witness_poly, Blind::default()).to_affine();
 
             transcript.write_point(w)?;
         }

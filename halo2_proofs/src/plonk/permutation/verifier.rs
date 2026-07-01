@@ -47,9 +47,7 @@ impl Argument {
             .map(|_| transcript.read_point())
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(Committed {
-            permutation_product_commitments,
-        })
+        Ok(Committed { permutation_product_commitments })
     }
 }
 
@@ -80,11 +78,8 @@ impl<C: CurveAffine> Committed<C> {
         while let Some(permutation_product_commitment) = iter.next() {
             let permutation_product_eval = transcript.read_scalar()?;
             let permutation_product_next_eval = transcript.read_scalar()?;
-            let permutation_product_last_eval = if iter.len() > 0 {
-                Some(transcript.read_scalar()?)
-            } else {
-                None
-            };
+            let permutation_product_last_eval =
+                if iter.len() > 0 { Some(transcript.read_scalar()?) } else { None };
 
             sets.push(EvaluatedSet {
                 permutation_product_commitment,
@@ -208,9 +203,7 @@ impl<C: CurveAffine> Evaluated<C> {
     ) -> impl Iterator<Item = VerifierQuery<'r, C, M>> + Clone {
         let blinding_factors = vk.cs.blinding_factors();
         let x_next = vk.domain.rotate_omega(*x, Rotation::next());
-        let x_last = vk
-            .domain
-            .rotate_omega(*x, Rotation(-((blinding_factors + 1) as i32)));
+        let x_last = vk.domain.rotate_omega(*x, Rotation(-((blinding_factors + 1) as i32)));
 
         iter::empty()
             .chain(self.sets.iter().flat_map(move |set| {

@@ -37,9 +37,7 @@ where
     }
     let mut point_query_map: Vec<(F, Vec<Q>)> = Vec::new();
     for query in queries {
-        if let Some(pos) = point_query_map
-            .iter()
-            .position(|(point, _)| *point == query.get_point())
+        if let Some(pos) = point_query_map.iter().position(|(point, _)| *point == query.get_point())
         {
             let (_, queries) = &mut point_query_map[pos];
             queries.push(query);
@@ -50,11 +48,7 @@ where
 
     let sets = point_query_map
         .into_iter()
-        .map(|(point, queries)| CommitmentData {
-            queries,
-            point,
-            _marker: PhantomData,
-        })
+        .map(|(point, queries)| CommitmentData { queries, point, _marker: PhantomData })
         .collect();
     Some(sets)
 }

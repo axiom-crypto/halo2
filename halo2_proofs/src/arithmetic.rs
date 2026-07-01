@@ -83,9 +83,7 @@ pub fn g_to_lagrange<C: PrimeCurveAffine>(g_projective: Vec<C::Curve>, k: u32) -
 /// This evaluates a provided polynomial (in coefficient form) at `point`.
 pub fn eval_polynomial<F: Field>(poly: &[F], point: F) -> F {
     fn evaluate<F: Field>(poly: &[F], point: F) -> F {
-        poly.iter()
-            .rev()
-            .fold(F::ZERO, |acc, coeff| acc * point + coeff)
+        poly.iter().rev().fold(F::ZERO, |acc, coeff| acc * point + coeff)
     }
     let n = poly.len();
     let num_threads = multicore::current_num_threads();
@@ -228,12 +226,7 @@ pub fn lagrange_interpolate<F: Field>(points: &[F], evals: &[F]) -> Vec<F> {
         let mut denoms = Vec::with_capacity(points.len());
         for (j, x_j) in points.iter().enumerate() {
             let mut denom = Vec::with_capacity(points.len() - 1);
-            for x_k in points
-                .iter()
-                .enumerate()
-                .filter(|&(k, _)| k != j)
-                .map(|a| a.1)
-            {
+            for x_k in points.iter().enumerate().filter(|&(k, _)| k != j).map(|a| a.1) {
                 denom.push(*x_j - x_k);
             }
             denoms.push(denom);
@@ -246,12 +239,8 @@ pub fn lagrange_interpolate<F: Field>(points: &[F], evals: &[F]) -> Vec<F> {
             let mut tmp: Vec<F> = Vec::with_capacity(points.len());
             let mut product = Vec::with_capacity(points.len() - 1);
             tmp.push(F::ONE);
-            for (x_k, denom) in points
-                .iter()
-                .enumerate()
-                .filter(|&(k, _)| k != j)
-                .map(|a| a.1)
-                .zip(denoms)
+            for (x_k, denom) in
+                points.iter().enumerate().filter(|&(k, _)| k != j).map(|a| a.1).zip(denoms)
             {
                 product.resize(tmp.len() + 1, F::ZERO);
                 for ((a, b), product) in tmp
@@ -274,7 +263,7 @@ pub fn lagrange_interpolate<F: Field>(points: &[F], evals: &[F]) -> Vec<F> {
     }
 }
 
-pub(crate) fn evaluate_vanishing_polynomial<F: Field>(roots: &[F], z: F) -> F {
+pub fn evaluate_vanishing_polynomial<F: Field>(roots: &[F], z: F) -> F {
     fn evaluate<F: Field>(roots: &[F], z: F) -> F {
         roots.iter().fold(F::ONE, |acc, point| (z - point) * acc)
     }
@@ -349,20 +338,16 @@ mod tests {
         let a_small: Vec<Fp> = (0..16).map(|_| Fp::random(rng)).collect();
         let b_small: Vec<Fp> = (0..16).map(|_| Fp::random(rng)).collect();
         let result_small = compute_inner_product(&a_small, &b_small);
-        let expected_small = a_small
-            .iter()
-            .zip(b_small.iter())
-            .fold(Fp::ZERO, |acc, (a, b)| acc + (*a) * (*b));
+        let expected_small =
+            a_small.iter().zip(b_small.iter()).fold(Fp::ZERO, |acc, (a, b)| acc + (*a) * (*b));
         assert_eq!(result_small, expected_small);
 
         // Test large vectors (parallel)
         let a_large: Vec<Fp> = (0..64).map(|_| Fp::random(rng)).collect();
         let b_large: Vec<Fp> = (0..64).map(|_| Fp::random(rng)).collect();
         let result_large = compute_inner_product(&a_large, &b_large);
-        let expected_large = a_large
-            .iter()
-            .zip(b_large.iter())
-            .fold(Fp::ZERO, |acc, (a, b)| acc + (*a) * (*b));
+        let expected_large =
+            a_large.iter().zip(b_large.iter()).fold(Fp::ZERO, |acc, (a, b)| acc + (*a) * (*b));
         assert_eq!(result_large, expected_large);
     }
 }

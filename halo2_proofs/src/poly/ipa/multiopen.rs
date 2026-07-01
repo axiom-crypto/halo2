@@ -48,19 +48,12 @@ struct CommitmentData<F, T: PartialEq> {
 
 impl<F, T: PartialEq> CommitmentData<F, T> {
     fn new(commitment: T) -> Self {
-        CommitmentData {
-            commitment,
-            set_index: 0,
-            point_indices: vec![],
-            evals: vec![],
-        }
+        CommitmentData { commitment, set_index: 0, point_indices: vec![], evals: vec![] }
     }
 }
 
-type IntermediateSets<F, Q> = (
-    Vec<CommitmentData<<Q as Query<F>>::Eval, <Q as Query<F>>::Commitment>>,
-    Vec<Vec<F>>,
-);
+type IntermediateSets<F, Q> =
+    (Vec<CommitmentData<<Q as Query<F>>::Eval, <Q as Query<F>>::Commitment>>, Vec<Vec<F>>);
 
 fn construct_intermediate_sets<F: Field + Ord, I, Q: Query<F>>(
     queries: I,
@@ -84,13 +77,10 @@ where
     // while also creating new commitment data.
     for query in queries.clone() {
         let num_points = point_index_map.len();
-        let point_idx = point_index_map
-            .entry(query.get_point())
-            .or_insert(num_points);
+        let point_idx = point_index_map.entry(query.get_point()).or_insert(num_points);
 
-        if let Some(pos) = commitment_map
-            .iter()
-            .position(|comm| comm.commitment == query.get_commitment())
+        if let Some(pos) =
+            commitment_map.iter().position(|comm| comm.commitment == query.get_commitment())
         {
             commitment_map[pos].point_indices.push(*point_idx);
         } else {
@@ -155,10 +145,7 @@ where
         let point_index_set: Vec<usize> = point_index_set.iter().cloned().collect();
 
         // The offset of the point_index in the point_index_set
-        let point_index_in_set = point_index_set
-            .iter()
-            .position(|i| i == point_index)
-            .unwrap();
+        let point_index_in_set = point_index_set.iter().position(|i| i == point_index).unwrap();
 
         for commitment_data in commitment_map.iter_mut() {
             if query.get_commitment() == commitment_data.commitment {

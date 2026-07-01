@@ -94,9 +94,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     }
 
     fn prover(k: u32) {
-        let circuit = MyCircuit::<pallas::Base> {
-            _marker: PhantomData,
-        };
+        let circuit = MyCircuit::<pallas::Base> { _marker: PhantomData };
         let prover = MockProver::run(k, &circuit, vec![]).unwrap();
         assert_eq!(prover.verify(), Ok(()))
     }

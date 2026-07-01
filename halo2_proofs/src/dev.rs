@@ -386,9 +386,7 @@ impl<F: Field> Assignment<F> for MockProver<F> {
         }
 
         if let Some(region) = self.current_region.as_mut() {
-            region
-                .annotations
-                .insert(ColumnMetadata::from(column), annotation().into());
+            region.annotations.insert(ColumnMetadata::from(column), annotation().into());
         }
     }
 
@@ -510,18 +508,11 @@ impl<F: Field> Assignment<F> for MockProver<F> {
 
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
-            region
-                .cells
-                .entry((column.into(), row))
-                .and_modify(|count| *count += 1)
-                .or_default();
+            region.cells.entry((column.into(), row)).and_modify(|count| *count += 1).or_default();
         }
 
-        *self
-            .fixed
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row))
-            .expect("bounds failure") = CellValue::Assigned(to.evaluate());
+        *self.fixed.get_mut(column.index()).and_then(|v| v.get_mut(row)).expect("bounds failure") =
+            CellValue::Assigned(to.evaluate());
     }
 
     fn copy(
@@ -612,13 +603,7 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
         let config = ConcreteCircuit::configure(&mut cs);
         let cs = cs;
 
-        assert!(
-            n >= cs.minimum_rows(),
-            "n={}, minimum_rows={}, k={}",
-            n,
-            cs.minimum_rows(),
-            k,
-        );
+        assert!(n >= cs.minimum_rows(), "n={}, minimum_rows={}, k={}", n, cs.minimum_rows(), k,);
 
         assert_eq!(instance.len(), cs.num_instance_columns);
 
@@ -849,20 +834,42 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
             .collect::<Vec<_>>();
         let advice = &advice;
         // Check that all gates are satisfied for all rows.
-        let gate_errors =
-            self.cs
-                .gates
-                .iter()
-                .enumerate()
-                .flat_map(|(gate_index, gate)| {
-                    let blinding_rows =
-                        (self.n as usize - (self.cs.blinding_factors() + 1))..(self.n as usize);
-                    (gate_row_ids.clone().chain(blinding_rows)).flat_map(move |row| {
-                        let row = row as i32 + n;
-                        gate.polynomials().iter().enumerate().filter_map(
-                            move |(poly_index, poly)| match poly.evaluate_lazy(
-                                &|scalar| Value::Real(scalar),
-                                &|_| panic!("virtual selectors are removed during optimization"),
+        let gate_errors = self.cs.gates.iter().enumerate().flat_map(|(gate_index, gate)| {
+            let blinding_rows =
+                (self.n as usize - (self.cs.blinding_factors() + 1))..(self.n as usize);
+            (gate_row_ids.clone().chain(blinding_rows)).flat_map(move |row| {
+                let row = row as i32 + n;
+                gate.polynomials().iter().enumerate().filter_map(move |(poly_index, poly)| {
+                    match poly.evaluate_lazy(
+                        &|scalar| Value::Real(scalar),
+                        &|_| panic!("virtual selectors are removed during optimization"),
+                        &util::load(n, row, &self.cs.fixed_queries, &self.fixed),
+                        &util::load(n, row, &self.cs.advice_queries, advice),
+                        &util::load_instance(n, row, &self.cs.instance_queries, &self.instance),
+                        &|challenge| Value::Real(self.challenges[challenge.index()]),
+                        &|a| -a,
+                        &|a, b| a + b,
+                        &|a, b| a * b,
+                        &|a, scalar| a * scalar,
+                        &Value::Real(F::ZERO),
+                    ) {
+                        Value::Real(x) if x.is_zero_vartime() => None,
+                        Value::Real(_) => Some(VerifyFailure::ConstraintNotSatisfied {
+                            constraint: (
+                                (gate_index, gate.name()).into(),
+                                poly_index,
+                                gate.constraint_name(poly_index),
+                            )
+                                .into(),
+                            location: FailureLocation::find_expressions(
+                                &self.cs,
+                                &self.regions,
+                                (row - n) as usize,
+                                Some(poly).into_iter(),
+                            ),
+                            cell_values: util::cell_values(
+                                gate,
+                                poly,
                                 &util::load(n, row, &self.cs.fixed_queries, &self.fixed),
                                 &util::load(n, row, &self.cs.advice_queries, advice),
                                 &util::load_instance(
@@ -871,52 +878,20 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
                                     &self.cs.instance_queries,
                                     &self.instance,
                                 ),
-                                &|challenge| Value::Real(self.challenges[challenge.index()]),
-                                &|a| -a,
-                                &|a, b| a + b,
-                                &|a, b| a * b,
-                                &|a, scalar| a * scalar,
-                                &Value::Real(F::ZERO),
-                            ) {
-                                Value::Real(x) if x.is_zero_vartime() => None,
-                                Value::Real(_) => Some(VerifyFailure::ConstraintNotSatisfied {
-                                    constraint: (
-                                        (gate_index, gate.name()).into(),
-                                        poly_index,
-                                        gate.constraint_name(poly_index),
-                                    )
-                                        .into(),
-                                    location: FailureLocation::find_expressions(
-                                        &self.cs,
-                                        &self.regions,
-                                        (row - n) as usize,
-                                        Some(poly).into_iter(),
-                                    ),
-                                    cell_values: util::cell_values(
-                                        gate,
-                                        poly,
-                                        &util::load(n, row, &self.cs.fixed_queries, &self.fixed),
-                                        &util::load(n, row, &self.cs.advice_queries, advice),
-                                        &util::load_instance(
-                                            n,
-                                            row,
-                                            &self.cs.instance_queries,
-                                            &self.instance,
-                                        ),
-                                    ),
-                                }),
-                                Value::Poison => Some(VerifyFailure::ConstraintPoisoned {
-                                    constraint: (
-                                        (gate_index, gate.name()).into(),
-                                        poly_index,
-                                        gate.constraint_name(poly_index),
-                                    )
-                                        .into(),
-                                }),
-                            },
-                        )
-                    })
-                });
+                            ),
+                        }),
+                        Value::Poison => Some(VerifyFailure::ConstraintPoisoned {
+                            constraint: (
+                                (gate_index, gate.name()).into(),
+                                poly_index,
+                                gate.constraint_name(poly_index),
+                            )
+                                .into(),
+                        }),
+                    }
+                })
+            })
+        });
 
         let load = |expression: &Expression<F>, row| {
             expression.evaluate_lazy(
@@ -960,102 +935,95 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
         let mut cached_table_identifier = Vec::new();
         // Check that all lookups exist in their respective tables.
         let lookup_errors =
-            self.cs
-                .lookups
-                .iter()
-                .enumerate()
-                .flat_map(|(lookup_index, lookup)| {
-                    assert!(lookup.table_expressions.len() == lookup.input_expressions.len());
-                    assert!(self.usable_rows.end > 0);
+            self.cs.lookups.iter().enumerate().flat_map(|(lookup_index, lookup)| {
+                assert!(lookup.table_expressions.len() == lookup.input_expressions.len());
+                assert!(self.usable_rows.end > 0);
 
-                    // We optimize on the basis that the table might have been filled so that the last
-                    // usable row now has the fill contents (it doesn't matter if there was no filling).
-                    // Note that this "fill row" necessarily exists in the table, and we use that fact to
-                    // slightly simplify the optimization: we're only trying to check that all input rows
-                    // are contained in the table, and so we can safely just drop input rows that
-                    // match the fill row.
-                    let fill_row: Vec<_> = lookup
-                        .table_expressions
-                        .iter()
-                        .map(move |c| load(c, self.usable_rows.end - 1))
-                        .collect();
+                // We optimize on the basis that the table might have been filled so that the last
+                // usable row now has the fill contents (it doesn't matter if there was no filling).
+                // Note that this "fill row" necessarily exists in the table, and we use that fact to
+                // slightly simplify the optimization: we're only trying to check that all input rows
+                // are contained in the table, and so we can safely just drop input rows that
+                // match the fill row.
+                let fill_row: Vec<_> = lookup
+                    .table_expressions
+                    .iter()
+                    .map(move |c| load(c, self.usable_rows.end - 1))
+                    .collect();
 
-                    let table_identifier = lookup
-                        .table_expressions
-                        .iter()
-                        .map(Expression::identifier)
-                        .collect::<Vec<_>>();
-                    if table_identifier != cached_table_identifier {
-                        cached_table_identifier = table_identifier;
+                let table_identifier =
+                    lookup.table_expressions.iter().map(Expression::identifier).collect::<Vec<_>>();
+                if table_identifier != cached_table_identifier {
+                    cached_table_identifier = table_identifier;
 
-                        // In the real prover, the lookup expressions are never enforced on
-                        // unusable rows, due to the (1 - (l_last(X) + l_blind(X))) term.
-                        cached_table = self
-                            .usable_rows
-                            .clone()
-                            .filter_map(|table_row| {
-                                let t = lookup
-                                    .table_expressions
-                                    .iter()
-                                    .map(move |c| load(c, table_row))
-                                    .collect();
-
-                                if t != fill_row {
-                                    Some(t)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-                        cached_table.sort_unstable();
-                    }
-                    let table = &cached_table;
-
-                    let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
+                    // In the real prover, the lookup expressions are never enforced on
+                    // unusable rows, due to the (1 - (l_last(X) + l_blind(X))) term.
+                    cached_table = self
+                        .usable_rows
                         .clone()
-                        .filter_map(|input_row| {
+                        .filter_map(|table_row| {
                             let t = lookup
-                                .input_expressions
+                                .table_expressions
                                 .iter()
-                                .map(move |c| load(c, input_row))
+                                .map(move |c| load(c, table_row))
                                 .collect();
 
                             if t != fill_row {
-                                // Also keep track of the original input row, since we're going to sort.
-                                Some((t, input_row))
+                                Some(t)
                             } else {
                                 None
                             }
                         })
                         .collect();
-                    inputs.sort_unstable();
+                    cached_table.sort_unstable();
+                }
+                let table = &cached_table;
 
-                    let mut i = 0;
-                    inputs
-                        .iter()
-                        .filter_map(move |(input, input_row)| {
-                            while i < table.len() && &table[i] < input {
-                                i += 1;
-                            }
-                            if i == table.len() || &table[i] > input {
-                                assert!(table.binary_search(input).is_err());
+                let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
+                    .clone()
+                    .filter_map(|input_row| {
+                        let t = lookup
+                            .input_expressions
+                            .iter()
+                            .map(move |c| load(c, input_row))
+                            .collect();
 
-                                Some(VerifyFailure::Lookup {
-                                    name: lookup.name.clone(),
-                                    lookup_index,
-                                    location: FailureLocation::find_expressions(
-                                        &self.cs,
-                                        &self.regions,
-                                        *input_row,
-                                        lookup.input_expressions.iter(),
-                                    ),
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                });
+                        if t != fill_row {
+                            // Also keep track of the original input row, since we're going to sort.
+                            Some((t, input_row))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                inputs.sort_unstable();
+
+                let mut i = 0;
+                inputs
+                    .iter()
+                    .filter_map(move |(input, input_row)| {
+                        while i < table.len() && &table[i] < input {
+                            i += 1;
+                        }
+                        if i == table.len() || &table[i] > input {
+                            assert!(table.binary_search(input).is_err());
+
+                            Some(VerifyFailure::Lookup {
+                                name: lookup.name.clone(),
+                                lookup_index,
+                                location: FailureLocation::find_expressions(
+                                    &self.cs,
+                                    &self.regions,
+                                    *input_row,
+                                    lookup.input_expressions.iter(),
+                                ),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            });
 
         let mapping = self.permutation.mapping();
         // Check that permutations preserve the original values of the cells.
@@ -1254,18 +1222,10 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
             .collect::<Vec<_>>();
         let advice = &advice;
         // Check that all gates are satisfied for all rows.
-        let gate_errors = self
-            .cs
-            .gates
-            .iter()
-            .enumerate()
-            .flat_map(|(gate_index, gate)| {
-                let blinding_rows =
-                    (self.n as usize - (self.cs.blinding_factors() + 1))..(self.n as usize);
-                (gate_row_ids
-                    .clone()
-                    .into_par_iter()
-                    .chain(blinding_rows.into_par_iter()))
+        let gate_errors = self.cs.gates.iter().enumerate().flat_map(|(gate_index, gate)| {
+            let blinding_rows =
+                (self.n as usize - (self.cs.blinding_factors() + 1))..(self.n as usize);
+            (gate_row_ids.clone().into_par_iter().chain(blinding_rows.into_par_iter()))
                 .flat_map(move |row| {
                     let row = row as i32 + n;
                     gate.polynomials()
@@ -1330,7 +1290,7 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>()
-            });
+        });
 
         let load = |expression: &Expression<F>, row| {
             expression.evaluate_lazy(
@@ -1367,98 +1327,91 @@ impl<F: FromUniformBytes<64> + Ord> MockProver<F> {
         let mut cached_table_identifier = Vec::new();
         // Check that all lookups exist in their respective tables.
         let lookup_errors =
-            self.cs
-                .lookups
-                .iter()
-                .enumerate()
-                .flat_map(|(lookup_index, lookup)| {
-                    assert!(lookup.table_expressions.len() == lookup.input_expressions.len());
-                    assert!(self.usable_rows.end > 0);
+            self.cs.lookups.iter().enumerate().flat_map(|(lookup_index, lookup)| {
+                assert!(lookup.table_expressions.len() == lookup.input_expressions.len());
+                assert!(self.usable_rows.end > 0);
 
-                    // We optimize on the basis that the table might have been filled so that the last
-                    // usable row now has the fill contents (it doesn't matter if there was no filling).
-                    // Note that this "fill row" necessarily exists in the table, and we use that fact to
-                    // slightly simplify the optimization: we're only trying to check that all input rows
-                    // are contained in the table, and so we can safely just drop input rows that
-                    // match the fill row.
-                    let fill_row: Vec<_> = lookup
-                        .table_expressions
-                        .iter()
-                        .map(move |c| load(c, self.usable_rows.end - 1))
-                        .collect();
+                // We optimize on the basis that the table might have been filled so that the last
+                // usable row now has the fill contents (it doesn't matter if there was no filling).
+                // Note that this "fill row" necessarily exists in the table, and we use that fact to
+                // slightly simplify the optimization: we're only trying to check that all input rows
+                // are contained in the table, and so we can safely just drop input rows that
+                // match the fill row.
+                let fill_row: Vec<_> = lookup
+                    .table_expressions
+                    .iter()
+                    .map(move |c| load(c, self.usable_rows.end - 1))
+                    .collect();
 
-                    let table_identifier = lookup
-                        .table_expressions
-                        .iter()
-                        .map(Expression::identifier)
-                        .collect::<Vec<_>>();
-                    if table_identifier != cached_table_identifier {
-                        cached_table_identifier = table_identifier;
+                let table_identifier =
+                    lookup.table_expressions.iter().map(Expression::identifier).collect::<Vec<_>>();
+                if table_identifier != cached_table_identifier {
+                    cached_table_identifier = table_identifier;
 
-                        // In the real prover, the lookup expressions are never enforced on
-                        // unusable rows, due to the (1 - (l_last(X) + l_blind(X))) term.
-                        cached_table = self
-                            .usable_rows
-                            .clone()
-                            .into_par_iter()
-                            .filter_map(|table_row| {
-                                let t = lookup
-                                    .table_expressions
-                                    .iter()
-                                    .map(move |c| load(c, table_row))
-                                    .collect();
-
-                                if t != fill_row {
-                                    Some(t)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-                        cached_table.par_sort_unstable();
-                    }
-                    let table = &cached_table;
-
-                    let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
+                    // In the real prover, the lookup expressions are never enforced on
+                    // unusable rows, due to the (1 - (l_last(X) + l_blind(X))) term.
+                    cached_table = self
+                        .usable_rows
                         .clone()
                         .into_par_iter()
-                        .filter_map(|input_row| {
+                        .filter_map(|table_row| {
                             let t = lookup
-                                .input_expressions
+                                .table_expressions
                                 .iter()
-                                .map(move |c| load(c, input_row))
+                                .map(move |c| load(c, table_row))
                                 .collect();
 
                             if t != fill_row {
-                                // Also keep track of the original input row, since we're going to sort.
-                                Some((t, input_row))
+                                Some(t)
                             } else {
                                 None
                             }
                         })
                         .collect();
-                    inputs.par_sort_unstable();
+                    cached_table.par_sort_unstable();
+                }
+                let table = &cached_table;
 
-                    inputs
-                        .par_iter()
-                        .filter_map(move |(input, input_row)| {
-                            if table.binary_search(input).is_err() {
-                                Some(VerifyFailure::Lookup {
-                                    name: lookup.name.clone(),
-                                    lookup_index,
-                                    location: FailureLocation::find_expressions(
-                                        &self.cs,
-                                        &self.regions,
-                                        *input_row,
-                                        lookup.input_expressions.iter(),
-                                    ),
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                });
+                let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
+                    .clone()
+                    .into_par_iter()
+                    .filter_map(|input_row| {
+                        let t = lookup
+                            .input_expressions
+                            .iter()
+                            .map(move |c| load(c, input_row))
+                            .collect();
+
+                        if t != fill_row {
+                            // Also keep track of the original input row, since we're going to sort.
+                            Some((t, input_row))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                inputs.par_sort_unstable();
+
+                inputs
+                    .par_iter()
+                    .filter_map(move |(input, input_row)| {
+                        if table.binary_search(input).is_err() {
+                            Some(VerifyFailure::Lookup {
+                                name: lookup.name.clone(),
+                                lookup_index,
+                                location: FailureLocation::find_expressions(
+                                    &self.cs,
+                                    &self.regions,
+                                    *input_row,
+                                    lookup.input_expressions.iter(),
+                                ),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            });
 
         let mapping = self.permutation.mapping();
         // Check that permutations preserve the original values of the cells.
@@ -1763,20 +1716,12 @@ mod tests {
                     let not_q = Expression::Constant(Fp::one()) - q.clone();
                     let default = Expression::Constant(Fp::from(2));
                     vec![
-                        (
-                            q.clone() * a.clone() + not_q.clone() * default.clone(),
-                            table,
-                        ),
+                        (q.clone() * a.clone() + not_q.clone() * default.clone(), table),
                         (q * a + not_q * default, advice_table),
                     ]
                 });
 
-                FaultyCircuitConfig {
-                    a,
-                    q,
-                    table,
-                    advice_table,
-                }
+                FaultyCircuitConfig { a, q, table, advice_table }
             }
 
             fn without_witnesses(&self) -> Self {
@@ -1836,12 +1781,7 @@ mod tests {
             K,
             &FaultyCircuit {},
             // This is our "lookup table".
-            vec![vec![
-                Fp::from(1u64),
-                Fp::from(2u64),
-                Fp::from(4u64),
-                Fp::from(6u64),
-            ]],
+            vec![vec![Fp::from(1u64), Fp::from(2u64), Fp::from(4u64), Fp::from(6u64)]],
         )
         .unwrap();
         assert_eq!(
@@ -2092,44 +2032,17 @@ mod tests {
                 },
                 cell_values: vec![
                     (
-                        (
-                            (
-                                Any::Advice(Advice {
-                                    phase: FirstPhase.to_sealed()
-                                }),
-                                0
-                            )
-                                .into(),
-                            0
-                        )
+                        ((Any::Advice(Advice { phase: FirstPhase.to_sealed() }), 0).into(), 0)
                             .into(),
                         "1".to_string()
                     ),
                     (
-                        (
-                            (
-                                Any::Advice(Advice {
-                                    phase: FirstPhase.to_sealed()
-                                }),
-                                1
-                            )
-                                .into(),
-                            0
-                        )
+                        ((Any::Advice(Advice { phase: FirstPhase.to_sealed() }), 1).into(), 0)
                             .into(),
                         "0".to_string()
                     ),
                     (
-                        (
-                            (
-                                Any::Advice(Advice {
-                                    phase: FirstPhase.to_sealed()
-                                }),
-                                2
-                            )
-                                .into(),
-                            0
-                        )
+                        ((Any::Advice(Advice { phase: FirstPhase.to_sealed() }), 2).into(), 0)
                             .into(),
                         "0x5".to_string()
                     ),
