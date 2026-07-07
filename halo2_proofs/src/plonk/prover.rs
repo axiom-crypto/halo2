@@ -577,14 +577,12 @@ where
             |AdviceSingle {
                  advice_polys,
                  advice_blinds,
-             }| {
-                AdviceSingle {
-                    advice_polys: advice_polys
-                        .into_iter()
-                        .map(|poly| domain.lagrange_to_coeff(poly))
-                        .collect::<Vec<_>>(),
-                    advice_blinds,
-                }
+             }| AdviceSingle {
+                advice_polys: advice_polys
+                    .into_iter()
+                    .map(|poly| domain.lagrange_to_coeff(poly))
+                    .collect::<Vec<_>>(),
+                advice_blinds,
             },
         )
         .collect();

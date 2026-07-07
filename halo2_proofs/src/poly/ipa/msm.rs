@@ -28,7 +28,6 @@ impl<'a, C: CurveAffine> MSMIPA<'a, C> {
             w_scalar,
             u_scalar,
             other,
-
             params,
         }
     }

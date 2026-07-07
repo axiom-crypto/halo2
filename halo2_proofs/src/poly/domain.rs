@@ -18,23 +18,23 @@ use std::collections::HashMap;
 /// domain of size $2^{k} * j$ with $j \neq 0$.
 #[derive(Clone, Debug)]
 pub struct EvaluationDomain<F: Field> {
-    n: u64,
-    k: u32,
-    extended_k: u32,
-    omega: F,
-    omega_inv: F,
-    extended_omega: F,
-    extended_omega_inv: F,
-    g_coset: F,
-    g_coset_inv: F,
-    quotient_poly_degree: u64,
-    ifft_divisor: F,
-    extended_ifft_divisor: F,
-    t_evaluations: Vec<F>,
-    barycentric_weight: F,
+    pub n: u64,
+    pub k: u32,
+    pub extended_k: u32,
+    pub omega: F,
+    pub omega_inv: F,
+    pub extended_omega: F,
+    pub extended_omega_inv: F,
+    pub g_coset: F,
+    pub g_coset_inv: F,
+    pub quotient_poly_degree: u64,
+    pub ifft_divisor: F,
+    pub extended_ifft_divisor: F,
+    pub t_evaluations: Vec<F>,
+    pub barycentric_weight: F,
 
     // Recursive stuff
-    fft_data: HashMap<usize, FFTData<F>>,
+    pub fft_data: HashMap<usize, FFTData<F>>,
 }
 
 impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
