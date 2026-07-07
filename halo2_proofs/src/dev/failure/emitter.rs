@@ -118,11 +118,19 @@ pub(super) fn render_cell_layout(
     }
     eprintln!();
     for (rotation, row) in layout {
-        eprint!("{}  |{}|", prefix, padded(' ', 8, &(offset.unwrap_or(0) + rotation).to_string()));
+        eprint!(
+            "{}  |{}|",
+            prefix,
+            padded(' ', 8, &(offset.unwrap_or(0) + rotation).to_string())
+        );
         for ((col, _), &width) in columns.iter().zip(widths.iter()) {
             eprint!(
                 "{}|",
-                padded(' ', width, row.get(col).map(|s| s.as_str()).unwrap_or_default())
+                padded(
+                    ' ',
+                    width,
+                    row.get(col).map(|s| s.as_str()).unwrap_or_default()
+                )
             );
         }
         highlight_row(offset, *rotation);
@@ -156,7 +164,11 @@ pub(super) fn expression_to_string<F: Field>(
                 .get(&query.rotation.0)
                 .and_then(|map| {
                     map.get(
-                        &(Any::Advice(Advice { phase: query.phase }), query.column_index).into(),
+                        &(
+                            Any::Advice(Advice { phase: query.phase }),
+                            query.column_index,
+                        )
+                            .into(),
                     )
                 })
                 .cloned()

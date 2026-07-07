@@ -57,13 +57,16 @@ fn best_fft<Scalar: Field, G: FftGroup<Scalar>>(a: &mut [G], omega: Scalar, log_
                 a[0] += &t;
                 b[0] -= &t;
 
-                left.iter_mut().zip(right.iter_mut()).enumerate().for_each(|(i, (a, b))| {
-                    let mut t = *b;
-                    t *= &twiddles[(i + 1) * twiddle_chunk];
-                    *b = *a;
-                    *a += &t;
-                    *b -= &t;
-                });
+                left.iter_mut()
+                    .zip(right.iter_mut())
+                    .enumerate()
+                    .for_each(|(i, (a, b))| {
+                        let mut t = *b;
+                        t *= &twiddles[(i + 1) * twiddle_chunk];
+                        *b = *a;
+                        *a += &t;
+                        *b -= &t;
+                    });
             });
             chunk *= 2;
             twiddle_chunk /= 2;
@@ -100,13 +103,16 @@ fn recursive_butterfly_arithmetic<Scalar: Field, G: FftGroup<Scalar>>(
         a[0] += &t;
         b[0] -= &t;
 
-        left.iter_mut().zip(right.iter_mut()).enumerate().for_each(|(i, (a, b))| {
-            let mut t = *b;
-            t *= &twiddles[(i + 1) * twiddle_chunk];
-            *b = *a;
-            *a += &t;
-            *b -= &t;
-        });
+        left.iter_mut()
+            .zip(right.iter_mut())
+            .enumerate()
+            .for_each(|(i, (a, b))| {
+                let mut t = *b;
+                t *= &twiddles[(i + 1) * twiddle_chunk];
+                *b = *a;
+                *a += &t;
+                *b -= &t;
+            });
     }
 }
 

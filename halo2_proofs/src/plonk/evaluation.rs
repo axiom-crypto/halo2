@@ -213,8 +213,11 @@ impl<C: CurveAffine> Evaluator<C> {
         // Custom gates
         let mut parts = Vec::new();
         for gate in cs.gates.iter() {
-            parts
-                .extend(gate.polynomials().iter().map(|poly| ev.custom_gates.add_expression(poly)));
+            parts.extend(
+                gate.polynomials()
+                    .iter()
+                    .map(|poly| ev.custom_gates.add_expression(poly)),
+            );
         }
         ev.custom_gates.add_calculation(Calculation::Horner(
             ValueSource::PreviousValue(),
@@ -227,7 +230,10 @@ impl<C: CurveAffine> Evaluator<C> {
             let mut graph = GraphEvaluator::default();
 
             let mut evaluate_lc = |expressions: &Vec<Expression<_>>| {
-                let parts = expressions.iter().map(|expr| graph.add_expression(expr)).collect();
+                let parts = expressions
+                    .iter()
+                    .map(|expr| graph.add_expression(expr))
+                    .collect();
                 graph.add_calculation(Calculation::Horner(
                     ValueSource::Constant(0),
                     parts,
@@ -240,10 +246,14 @@ impl<C: CurveAffine> Evaluator<C> {
             // table coset
             let compressed_table_coset = evaluate_lc(&lookup.table_expressions);
             // z(\omega X) (a'(X) + \beta) (s'(X) + \gamma)
-            let right_gamma = graph
-                .add_calculation(Calculation::Add(compressed_table_coset, ValueSource::Gamma()));
-            let lc = graph
-                .add_calculation(Calculation::Add(compressed_input_coset, ValueSource::Beta()));
+            let right_gamma = graph.add_calculation(Calculation::Add(
+                compressed_table_coset,
+                ValueSource::Gamma(),
+            ));
+            let lc = graph.add_calculation(Calculation::Add(
+                compressed_input_coset,
+                ValueSource::Beta(),
+            ));
             graph.add_calculation(Calculation::Mul(lc, right_gamma));
 
             ev.lookups.push(graph);
@@ -331,8 +341,11 @@ impl<C: CurveAffine> Evaluator<C> {
 
                 // Core expression evaluations
                 let num_threads = multicore::current_num_threads();
-                for (((advice, instance), lookups), permutation) in
-                    advice.iter().zip(instance.iter()).zip(lookups.iter()).zip(permutations.iter())
+                for (((advice, instance), lookups), permutation) in advice
+                    .iter()
+                    .zip(instance.iter())
+                    .zip(lookups.iter())
+                    .zip(permutations.iter())
                 {
                     #[cfg(feature = "profile")]
                     let timer = start_timer!(|| "Custom gates");
@@ -581,7 +594,11 @@ impl<C: CurveAffine> Default for GraphEvaluator<C> {
     fn default() -> Self {
         Self {
             // Fixed positions to allow easy access
-            constants: vec![C::ScalarExt::ZERO, C::ScalarExt::ONE, C::ScalarExt::from(2u64)],
+            constants: vec![
+                C::ScalarExt::ZERO,
+                C::ScalarExt::ONE,
+                C::ScalarExt::from(2u64),
+            ],
             rotations: Vec::new(),
             calculations: Vec::new(),
             num_intermediates: 0,
@@ -619,12 +636,18 @@ impl<C: CurveAffine> GraphEvaluator<C> {
     /// resulting value so the result can be reused  when that calculation
     /// is done multiple times.
     fn add_calculation(&mut self, calculation: Calculation) -> ValueSource {
-        let existing_calculation = self.calculations.iter().find(|c| c.calculation == calculation);
+        let existing_calculation = self
+            .calculations
+            .iter()
+            .find(|c| c.calculation == calculation);
         match existing_calculation {
             Some(existing_calculation) => ValueSource::Intermediate(existing_calculation.target),
             None => {
                 let target = self.num_intermediates;
-                self.calculations.push(CalculationInfo { calculation, target });
+                self.calculations.push(CalculationInfo {
+                    calculation,
+                    target,
+                });
                 self.num_intermediates += 1;
                 ValueSource::Intermediate(target)
             }
@@ -657,9 +680,9 @@ impl<C: CurveAffine> GraphEvaluator<C> {
                     rot_idx,
                 )))
             }
-            Expression::Challenge(challenge) => {
-                self.add_calculation(Calculation::Store(ValueSource::Challenge(challenge.index())))
-            }
+            Expression::Challenge(challenge) => self.add_calculation(Calculation::Store(
+                ValueSource::Challenge(challenge.index()),
+            )),
             Expression::Negated(a) => match **a {
                 Expression::Constant(scalar) => self.add_constant(&-scalar),
                 _ => {

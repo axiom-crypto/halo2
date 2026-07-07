@@ -112,7 +112,11 @@ impl fmt::Display for TableError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TableError::ColumnNotAssigned(col) => {
-                write!(f, "{:?} not fully assigned. Help: assign a value at offset 0.", col)
+                write!(
+                    f,
+                    "{:?} not fully assigned. Help: assign a value at offset 0.",
+                    col
+                )
             }
             TableError::UnevenColumnLengths((col, col_len), (table, table_len)) => write!(
                 f,

@@ -103,7 +103,12 @@ fn cell_value<'a, F: Field, Q: Into<AnyQuery> + Copy>(
     load: impl Fn(Q) -> Value<F> + 'a,
 ) -> impl Fn(Q) -> BTreeMap<metadata::VirtualCell, String> + 'a {
     move |query| {
-        let AnyQuery { column_type, column_index, rotation, .. } = query.into();
+        let AnyQuery {
+            column_type,
+            column_index,
+            rotation,
+            ..
+        } = query.into();
         virtual_cells
             .iter()
             .find(|c| {

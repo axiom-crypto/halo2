@@ -82,15 +82,30 @@ impl<const W: usize> MyConfig<W> {
             let [theta, gamma] = [theta, gamma].map(|challenge| challenge.expr());
 
             // Compress
-            let original =
-                original.iter().cloned().reduce(|acc, a| acc * theta.clone() + a).unwrap();
-            let shuffled =
-                shuffled.iter().cloned().reduce(|acc, a| acc * theta.clone() + a).unwrap();
+            let original = original
+                .iter()
+                .cloned()
+                .reduce(|acc, a| acc * theta.clone() + a)
+                .unwrap();
+            let shuffled = shuffled
+                .iter()
+                .cloned()
+                .reduce(|acc, a| acc * theta.clone() + a)
+                .unwrap();
 
             vec![q_shuffle * (z.cur() * (original + gamma.clone()) - z.next() * (shuffled + gamma))]
         });
 
-        Self { q_shuffle, q_first, q_last, original, shuffled, theta, gamma, z }
+        Self {
+            q_shuffle,
+            q_first,
+            q_last,
+            original,
+            shuffled,
+            theta,
+            gamma,
+            z,
+        }
     }
 }
 
@@ -105,7 +120,10 @@ impl<F: Field, const W: usize, const H: usize> MyCircuit<F, W, H> {
         let original = rand_2d_array::<F, _, W, H>(rng);
         let shuffled = shuffled(original, rng);
 
-        Self { original: Value::known(original), shuffled: Value::known(shuffled) }
+        Self {
+            original: Value::known(original),
+            shuffled: Value::known(shuffled),
+        }
     }
 }
 
@@ -139,15 +157,21 @@ impl<F: Field, const W: usize, const H: usize> Circuit<F> for MyCircuit<F, W, H>
                 }
 
                 // First phase
-                for (_idx, (&column, values)) in
-                    config.original.iter().zip(self.original.transpose_array().iter()).enumerate()
+                for (_idx, (&column, values)) in config
+                    .original
+                    .iter()
+                    .zip(self.original.transpose_array().iter())
+                    .enumerate()
                 {
                     for (offset, &value) in values.transpose_array().iter().enumerate() {
                         region.assign_advice(column, offset, value);
                     }
                 }
-                for (_idx, (&column, values)) in
-                    config.shuffled.iter().zip(self.shuffled.transpose_array().iter()).enumerate()
+                for (_idx, (&column, values)) in config
+                    .shuffled
+                    .iter()
+                    .zip(self.shuffled.transpose_array().iter())
+                    .enumerate()
                 {
                     for (offset, &value) in values.transpose_array().iter().enumerate() {
                         region.assign_advice(column, offset, value);

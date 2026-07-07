@@ -18,7 +18,10 @@ pub struct MSMKZG<E: Engine> {
 impl<E: Engine> MSMKZG<E> {
     /// Create an empty MSM instance
     pub fn new() -> Self {
-        MSMKZG { scalars: vec![], bases: vec![] }
+        MSMKZG {
+            scalars: vec![],
+            bases: vec![],
+        }
     }
 
     /// Prepares all scalars in the MSM to linear combination
@@ -87,7 +90,9 @@ pub(crate) struct PreMSM<E: Engine> {
 
 impl<E: Engine + Debug> PreMSM<E> {
     pub(crate) fn new() -> Self {
-        PreMSM { projectives_msms: vec![] }
+        PreMSM {
+            projectives_msms: vec![],
+        }
     }
 
     pub(crate) fn normalize(self) -> MSMKZG<E> {
@@ -125,7 +130,11 @@ pub struct DualMSM<'a, E: Engine> {
 impl<'a, E: MultiMillerLoop + Debug> DualMSM<'a, E> {
     /// Create a new two channel MSM accumulator instance
     pub fn new(params: &'a ParamsKZG<E>) -> Self {
-        Self { params, left: MSMKZG::new(), right: MSMKZG::new() }
+        Self {
+            params,
+            left: MSMKZG::new(),
+            right: MSMKZG::new(),
+        }
     }
 }
 
@@ -153,9 +162,16 @@ where
         let left = self.left.eval();
         let right = self.right.eval();
 
-        let (term_1, term_2) = ((&left.into(), &s_g2_prepared), (&right.into(), &n_g2_prepared));
+        let (term_1, term_2) = (
+            (&left.into(), &s_g2_prepared),
+            (&right.into(), &n_g2_prepared),
+        );
         let terms = &[term_1, term_2];
 
-        bool::from(E::multi_miller_loop(&terms[..]).final_exponentiation().is_identity())
+        bool::from(
+            E::multi_miller_loop(&terms[..])
+                .final_exponentiation()
+                .is_identity(),
+        )
     }
 }

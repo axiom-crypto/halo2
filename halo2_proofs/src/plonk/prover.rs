@@ -117,7 +117,10 @@ where
                 })
                 .collect();
 
-            InstanceSingle { instance_values, instance_polys }
+            InstanceSingle {
+                instance_values,
+                instance_polys,
+            }
         })
         .collect();
 
@@ -334,8 +337,10 @@ where
                 }
             }
             // Compute commitments to advice column polynomials
-            let blinds: Vec<_> =
-                advice_values.iter().map(|_| Blind(F::random(&mut self.rng))).collect();
+            let blinds: Vec<_> = advice_values
+                .iter()
+                .map(|_| Blind(F::random(&mut self.rng)))
+                .collect();
             let advice_commitments_projective: Vec<_> = (&advice_values)
                 .into_par_iter()
                 .zip((&blinds).into_par_iter())
@@ -351,16 +356,19 @@ where
                     .write_point(*commitment)
                     .expect("Absorbing advice commitment to transcript failed");
             }
-            for ((column_index, advice_poly), blind) in
-                self.column_indices[phase].iter().zip(advice_values).zip(blinds)
+            for ((column_index, advice_poly), blind) in self.column_indices[phase]
+                .iter()
+                .zip(advice_values)
+                .zip(blinds)
             {
                 self.advice_single.advice_polys[*column_index] = advice_poly;
                 self.advice_single.advice_blinds[*column_index] = blind;
             }
             for challenge_index in self.challenge_indices[phase].iter() {
-                let existing = self
-                    .challenges
-                    .insert(*challenge_index, *self.transcript.squeeze_challenge_scalar::<()>());
+                let existing = self.challenges.insert(
+                    *challenge_index,
+                    *self.transcript.squeeze_challenge_scalar::<()>(),
+                );
                 assert!(existing.is_none());
             }
             self.current_phase = self.current_phase.next();
@@ -539,7 +547,9 @@ where
             lookups
                 .into_iter()
                 .map(|lookup| {
-                    lookup.commit_product(pk, params, beta, gamma, &mut rng, transcript).unwrap()
+                    lookup
+                        .commit_product(pk, params, beta, gamma, &mut rng, transcript)
+                        .unwrap()
                 })
                 .collect()
         })
@@ -563,13 +573,18 @@ where
     // Calculate the advice polys
     let advice: Vec<AdviceSingle<Scheme::Curve, Coeff>> = advice
         .into_iter()
-        .map(|AdviceSingle { advice_polys, advice_blinds }| AdviceSingle {
-            advice_polys: advice_polys
-                .into_iter()
-                .map(|poly| domain.lagrange_to_coeff(poly))
-                .collect::<Vec<_>>(),
-            advice_blinds,
-        })
+        .map(
+            |AdviceSingle {
+                 advice_polys,
+                 advice_blinds,
+             }| AdviceSingle {
+                advice_polys: advice_polys
+                    .into_iter()
+                    .map(|poly| domain.lagrange_to_coeff(poly))
+                    .collect::<Vec<_>>(),
+                advice_blinds,
+            },
+        )
         .collect();
     #[cfg(feature = "profile")]
     end_timer!(fft_time);
@@ -579,8 +594,14 @@ where
     // Evaluate the h(X) polynomial
     let h_poly = pk.ev.evaluate_h(
         pk,
-        &advice.iter().map(|a| a.advice_polys.as_slice()).collect::<Vec<_>>(),
-        &instance.iter().map(|i| i.instance_polys.as_slice()).collect::<Vec<_>>(),
+        &advice
+            .iter()
+            .map(|a| a.advice_polys.as_slice())
+            .collect::<Vec<_>>(),
+        &instance
+            .iter()
+            .map(|i| i.instance_polys.as_slice())
+            .collect::<Vec<_>>(),
         &challenges,
         *y,
         *beta,
@@ -633,7 +654,10 @@ where
             .advice_queries
             .iter()
             .map(|&(column, at)| {
-                eval_polynomial(&advice.advice_polys[column.index()], domain.rotate_omega(*x, at))
+                eval_polynomial(
+                    &advice.advice_polys[column.index()],
+                    domain.rotate_omega(*x, at),
+                )
             })
             .collect();
 
@@ -672,7 +696,10 @@ where
     let lookups: Vec<Vec<lookup::prover::Evaluated<Scheme::Curve>>> = lookups
         .into_iter()
         .map(|lookups| -> Vec<_> {
-            lookups.into_iter().map(|p| p.evaluate(pk, x, transcript).unwrap()).collect()
+            lookups
+                .into_iter()
+                .map(|p| p.evaluate(pk, x, transcript).unwrap())
+                .collect()
         })
         .collect();
     #[cfg(feature = "profile")]
@@ -697,19 +724,31 @@ where
                         .into_iter()
                         .flatten(),
                 )
-                .chain(pk.vk.cs.advice_queries.iter().map(move |&(column, at)| ProverQuery {
-                    point: domain.rotate_omega(*x, at),
-                    poly: &advice.advice_polys[column.index()],
-                    blind: advice.advice_blinds[column.index()],
-                }))
+                .chain(
+                    pk.vk
+                        .cs
+                        .advice_queries
+                        .iter()
+                        .map(move |&(column, at)| ProverQuery {
+                            point: domain.rotate_omega(*x, at),
+                            poly: &advice.advice_polys[column.index()],
+                            blind: advice.advice_blinds[column.index()],
+                        }),
+                )
                 .chain(permutation.open(pk, x))
                 .chain(lookups.iter().flat_map(move |p| p.open(pk, x)))
         })
-        .chain(pk.vk.cs.fixed_queries.iter().map(|&(column, at)| ProverQuery {
-            point: domain.rotate_omega(*x, at),
-            poly: &pk.fixed_polys[column.index()],
-            blind: Blind::default(),
-        }))
+        .chain(
+            pk.vk
+                .cs
+                .fixed_queries
+                .iter()
+                .map(|&(column, at)| ProverQuery {
+                    point: domain.rotate_omega(*x, at),
+                    poly: &pk.fixed_polys[column.index()],
+                    blind: Blind::default(),
+                }),
+        )
         .chain(pk.permutation.open(x))
         // We query the h(X) polynomial at x
         .chain(vanishing.open(x));

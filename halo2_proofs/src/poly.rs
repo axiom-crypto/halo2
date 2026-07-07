@@ -116,7 +116,10 @@ impl<F, B, S: Storage> Debug for Polynomial<F, B, S> {
 
 impl<F: Clone, B> Clone for Polynomial<F, B, Host> {
     fn clone(&self) -> Self {
-        Self { storage: self.storage.clone(), _marker: PhantomData }
+        Self {
+            storage: self.storage.clone(),
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -125,7 +128,10 @@ impl<F, B, S: Storage> Polynomial<F, B, S> {
     /// generic seam that lets out-of-crate storage backends build a
     /// `Polynomial` for any `S`.
     pub fn from_backing(backing: S::Backing<F>) -> Self {
-        Self { storage: backing, _marker: PhantomData }
+        Self {
+            storage: backing,
+            _marker: PhantomData,
+        }
     }
 
     /// Borrow the backing container.
@@ -163,7 +169,10 @@ impl<F, B, S: Storage> Polynomial<F, B, S> {
 impl<F, B> Polynomial<F, B, Host> {
     /// Construct a host-resident polynomial directly from `Vec<F>`.
     pub fn new(values: Vec<F>) -> Self {
-        Self { storage: values, _marker: PhantomData }
+        Self {
+            storage: values,
+            _marker: PhantomData,
+        }
     }
 
     /// Direct host slice accessor.
@@ -319,9 +328,9 @@ impl<F: SerdePrimeField, B> Polynomial<F, B> {
                 unsafe { values.set_len(poly_len) };
                 values
             }
-            SerdeFormat::Processed => {
-                (0..poly_len).map(|_| F::read(reader, format).unwrap()).collect()
-            }
+            SerdeFormat::Processed => (0..poly_len)
+                .map(|_| F::read(reader, format).unwrap())
+                .collect(),
         };
 
         Self::new(values)
@@ -330,7 +339,9 @@ impl<F: SerdePrimeField, B> Polynomial<F, B> {
     /// Writes polynomial to buffer using `SerdePrimeField::write`.
     pub(crate) fn write<W: io::Write>(&self, writer: &mut W, format: SerdeFormat) {
         let values = self.values();
-        writer.write_all(&(values.len() as u32).to_be_bytes()).unwrap();
+        writer
+            .write_all(&(values.len() as u32).to_be_bytes())
+            .unwrap();
         for value in values.iter() {
             value.write(writer, format).unwrap();
         }
@@ -349,8 +360,10 @@ where
     }
     let n = assigned[0].as_ref().len();
     // 1d vector better for memory allocation
-    let mut assigned_denominators: Vec<_> =
-        assigned.iter().flat_map(|f| f.as_ref().iter().map(|value| value.denominator())).collect();
+    let mut assigned_denominators: Vec<_> = assigned
+        .iter()
+        .flat_map(|f| f.as_ref().iter().map(|value| value.denominator()))
+        .collect();
 
     assigned_denominators
         .iter_mut()
@@ -399,8 +412,11 @@ impl<F: Field> Polynomial<Assigned<F>, LagrangeCoeff> {
     ) -> Polynomial<F, LagrangeCoeff> {
         let src = self.values();
         assert_eq!(inv_denoms.len(), src.len());
-        let values: Vec<F> =
-            src.iter().zip(inv_denoms).map(|(a, inv_den)| a.numerator() * inv_den).collect();
+        let values: Vec<F> = src
+            .iter()
+            .zip(inv_denoms)
+            .map(|(a, inv_den)| a.numerator() * inv_den)
+            .collect();
         Polynomial::new(values)
     }
 }

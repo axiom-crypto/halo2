@@ -40,7 +40,10 @@ impl From<(Any, usize)> for Column {
 
 impl From<plonk::Column<Any>> for Column {
     fn from(column: plonk::Column<Any>) -> Self {
-        Column { column_type: *column.column_type(), index: column.index() }
+        Column {
+            column_type: *column.column_type(),
+            index: column.index(),
+        }
     }
 }
 
@@ -60,14 +63,22 @@ impl From<(Column, Option<&HashMap<Column, String>>)> for DebugColumn {
         DebugColumn {
             column_type: info.0.column_type,
             index: info.0.index,
-            annotation: info.1.and_then(|map| map.get(&info.0)).cloned().unwrap_or_default(),
+            annotation: info
+                .1
+                .and_then(|map| map.get(&info.0))
+                .cloned()
+                .unwrap_or_default(),
         }
     }
 }
 
 impl fmt::Display for DebugColumn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Column('{:?}', {} - {})", self.column_type, self.index, self.annotation)
+        write!(
+            f,
+            "Column('{:?}', {} - {})",
+            self.column_type, self.index, self.annotation
+        )
     }
 }
 
@@ -82,19 +93,31 @@ pub struct VirtualCell {
 
 impl From<(Column, i32)> for VirtualCell {
     fn from((column, rotation): (Column, i32)) -> Self {
-        VirtualCell { name: "".to_string(), column, rotation }
+        VirtualCell {
+            name: "".to_string(),
+            column,
+            rotation,
+        }
     }
 }
 
 impl<S: AsRef<str>> From<(S, Column, i32)> for VirtualCell {
     fn from((name, column, rotation): (S, Column, i32)) -> Self {
-        VirtualCell { name: name.as_ref().to_string(), column, rotation }
+        VirtualCell {
+            name: name.as_ref().to_string(),
+            column,
+            rotation,
+        }
     }
 }
 
 impl From<plonk::VirtualCell> for VirtualCell {
     fn from(c: plonk::VirtualCell) -> Self {
-        VirtualCell { name: "".to_string(), column: c.column.into(), rotation: c.rotation.0 }
+        VirtualCell {
+            name: "".to_string(),
+            column: c.column.into(),
+            rotation: c.rotation.0,
+        }
     }
 }
 
@@ -155,7 +178,10 @@ impl fmt::Display for Gate {
 
 impl<S: AsRef<str>> From<(usize, S)> for Gate {
     fn from((index, name): (usize, S)) -> Self {
-        Gate { index, name: name.as_ref().to_string() }
+        Gate {
+            index,
+            name: name.as_ref().to_string(),
+        }
     }
 }
 
@@ -192,7 +218,11 @@ impl fmt::Display for Constraint {
 
 impl<S: AsRef<str>> From<(Gate, usize, S)> for Constraint {
     fn from((gate, index, name): (Gate, usize, S)) -> Self {
-        Constraint { gate, index, name: name.as_ref().to_string() }
+        Constraint {
+            gate,
+            index,
+            name: name.as_ref().to_string(),
+        }
     }
 }
 
@@ -216,7 +246,9 @@ impl Region {
     /// - There's no annotation map generated for this `Region`.
     /// - There's no entry on the annotation map corresponding to the metadata provided.
     pub(crate) fn get_column_annotation(&self, metadata: ColumnMetadata) -> Option<String> {
-        self.column_annotations.as_ref().and_then(|map| map.get(&metadata).cloned())
+        self.column_annotations
+            .as_ref()
+            .and_then(|map| map.get(&metadata).cloned())
     }
 }
 
@@ -242,24 +274,40 @@ impl fmt::Display for Region {
 
 impl From<(usize, String)> for Region {
     fn from((index, name): (usize, String)) -> Self {
-        Region { index, name, column_annotations: None }
+        Region {
+            index,
+            name,
+            column_annotations: None,
+        }
     }
 }
 
 impl From<(usize, &str)> for Region {
     fn from((index, name): (usize, &str)) -> Self {
-        Region { index, name: name.to_owned(), column_annotations: None }
+        Region {
+            index,
+            name: name.to_owned(),
+            column_annotations: None,
+        }
     }
 }
 
 impl From<(usize, String, HashMap<ColumnMetadata, String>)> for Region {
     fn from((index, name, annotations): (usize, String, HashMap<ColumnMetadata, String>)) -> Self {
-        Region { index, name, column_annotations: Some(annotations) }
+        Region {
+            index,
+            name,
+            column_annotations: Some(annotations),
+        }
     }
 }
 
 impl From<(usize, &str, HashMap<ColumnMetadata, String>)> for Region {
     fn from((index, name, annotations): (usize, &str, HashMap<ColumnMetadata, String>)) -> Self {
-        Region { index, name: name.to_owned(), column_annotations: Some(annotations) }
+        Region {
+            index,
+            name: name.to_owned(),
+            column_annotations: Some(annotations),
+        }
     }
 }

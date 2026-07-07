@@ -143,7 +143,10 @@ where
     pub(super) fn read<R: io::Read>(reader: &mut R, format: SerdeFormat) -> Self {
         let permutations = read_polynomial_vec(reader, format);
         let polys = read_polynomial_vec(reader, format);
-        ProvingKey { permutations, polys }
+        ProvingKey {
+            permutations,
+            polys,
+        }
     }
 
     /// Writes proving key for a single permutation argument to buffer using `Polynomial::write`.
@@ -161,7 +164,10 @@ impl<C: CurveAffine> ProvingKey<C> {
         permutations: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
         polys: Vec<Polynomial<C::Scalar, Coeff>>,
     ) -> Self {
-        ProvingKey { permutations, polys }
+        ProvingKey {
+            permutations,
+            polys,
+        }
     }
 
     /// Gets the total number of bytes in the serialization of `self`

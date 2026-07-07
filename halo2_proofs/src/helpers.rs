@@ -121,7 +121,9 @@ pub(crate) fn read_polynomial_vec<R: io::Read, F: SerdePrimeField, B>(
     reader.read_exact(&mut len).unwrap();
     let len = u32::from_be_bytes(len);
 
-    (0..len).map(|_| Polynomial::<F, B>::read(reader, format)).collect()
+    (0..len)
+        .map(|_| Polynomial::<F, B>::read(reader, format))
+        .collect()
 }
 
 /// Writes a slice of polynomials to buffer
@@ -130,7 +132,9 @@ pub(crate) fn write_polynomial_slice<W: io::Write, F: SerdePrimeField, B>(
     writer: &mut W,
     format: SerdeFormat,
 ) {
-    writer.write_all(&(slice.len() as u32).to_be_bytes()).unwrap();
+    writer
+        .write_all(&(slice.len() as u32).to_be_bytes())
+        .unwrap();
     for poly in slice.iter() {
         poly.write(writer, format);
     }

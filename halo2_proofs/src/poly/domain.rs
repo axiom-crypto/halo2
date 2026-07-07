@@ -415,7 +415,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         // Truncate it to match the size of the quotient polynomial; the
         // evaluation domain might be slightly larger than necessary because
         // it always lies on a power-of-two boundary.
-        a.backing_mut().truncate((&self.n * self.quotient_poly_degree) as usize);
+        a.backing_mut()
+            .truncate((&self.n * self.quotient_poly_degree) as usize);
 
         a.into_values()
     }
@@ -472,7 +473,13 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
             });
         }
         let data = self.get_fft_data(result.len());
-        best_fft(&mut result, self.extended_omega, self.extended_k, data, false);
+        best_fft(
+            &mut result,
+            self.extended_omega,
+            self.extended_k,
+            data,
+            false,
+        );
         parallelize(result_poly.values_mut(), |values, start| {
             for (value, other) in values.iter_mut().zip(result[start..].iter()) {
                 *value += other;
@@ -594,7 +601,9 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         if rotation.0 >= 0 {
             point *= &self.get_omega().pow_vartime([rotation.0 as u64]);
         } else {
-            point *= &self.get_omega_inv().pow_vartime([(rotation.0 as i64).unsigned_abs()]);
+            point *= &self
+                .get_omega_inv()
+                .pow_vartime([(rotation.0 as i64).unsigned_abs()]);
         }
         point
     }
@@ -662,7 +671,11 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     /// minimal parameters needed to determine the rest of the evaluation
     /// domain.
     pub fn pinned(&self) -> PinnedEvaluationDomain<'_, F> {
-        PinnedEvaluationDomain { k: &self.k, extended_k: &self.extended_k, omega: &self.omega }
+        PinnedEvaluationDomain {
+            k: &self.k,
+            extended_k: &self.extended_k,
+            omega: &self.omega,
+        }
     }
 
     /// Get the private field `n`
@@ -672,7 +685,9 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
 
     /// Get the private `fft_data`
     pub fn get_fft_data(&self, l: usize) -> &FFTData<F> {
-        self.fft_data.get(&l).expect("log_2(l) must be in k..=extended_k")
+        self.fft_data
+            .get(&l)
+            .expect("log_2(l) must be in k..=extended_k")
     }
 }
 
@@ -712,7 +727,10 @@ fn test_rotate() {
 
     let x = Scalar::random(rng);
 
-    assert_eq!(eval_polynomial(&poly[..], x), eval_polynomial(&poly_rotated_cur[..], x));
+    assert_eq!(
+        eval_polynomial(&poly[..], x),
+        eval_polynomial(&poly_rotated_cur[..], x)
+    );
     assert_eq!(
         eval_polynomial(&poly[..], x * domain.omega),
         eval_polynomial(&poly_rotated_next[..], x)
@@ -794,7 +812,10 @@ fn bench_coeff_to_extended_parts() {
 
     let coeff_to_extended_timer = Instant::now();
     let _ = domain.coeff_to_extended(&poly1);
-    println!("domain.coeff_to_extended time: {}s", coeff_to_extended_timer.elapsed().as_secs_f64());
+    println!(
+        "domain.coeff_to_extended time: {}s",
+        coeff_to_extended_timer.elapsed().as_secs_f64()
+    );
 
     let coeff_to_extended_parts_timer = Instant::now();
     let _ = domain.coeff_to_extended_parts(&poly2);
@@ -839,7 +860,13 @@ fn test_lagrange_vecs_to_extended() {
         // poly under extended representation.
         poly.resize(domain.extended_len(), Scalar::zero());
         let data = domain.get_fft_data(poly.len());
-        best_fft(&mut poly, domain.extended_omega, domain.extended_k, data, false);
+        best_fft(
+            &mut poly,
+            domain.extended_omega,
+            domain.extended_k,
+            data,
+            false,
+        );
         let poly = {
             let mut p = domain.empty_extended();
             p = Polynomial::new(poly);
@@ -890,7 +917,13 @@ fn bench_lagrange_vecs_to_extended() {
         // poly under extended representation.
         poly.resize(domain.extended_len(), Scalar::zero());
         let data = domain.get_fft_data(poly.len());
-        best_fft(&mut poly, domain.extended_omega, domain.extended_k, data, false);
+        best_fft(
+            &mut poly,
+            domain.extended_omega,
+            domain.extended_k,
+            data,
+            false,
+        );
         let poly = {
             let mut p = domain.empty_extended();
             p = Polynomial::new(poly);
@@ -901,7 +934,9 @@ fn bench_lagrange_vecs_to_extended() {
     }
 
     let want_timer = Instant::now();
-    let _ = poly_extended_vecs.iter().fold(domain.empty_extended(), |acc, p| acc + p);
+    let _ = poly_extended_vecs
+        .iter()
+        .fold(domain.empty_extended(), |acc, p| acc + p);
     println!("want time: {}s", want_timer.elapsed().as_secs_f64());
     poly_lagrange_vecs.reverse();
     let got_timer = Instant::now();

@@ -235,7 +235,10 @@ impl<F: Field> Mul for Assigned<F> {
             (
                 Self::Rational(lhs_numerator, lhs_denominator),
                 Self::Rational(rhs_numerator, rhs_denominator),
-            ) => Self::Rational(lhs_numerator * rhs_numerator, lhs_denominator * rhs_denominator),
+            ) => Self::Rational(
+                lhs_numerator * rhs_numerator,
+                lhs_denominator * rhs_denominator,
+            ),
         }
     }
 }
@@ -535,8 +538,11 @@ mod proptests {
         Mul,
     }
 
-    const BINARY_OPERATORS: &[BinaryOperator] =
-        &[BinaryOperator::Add, BinaryOperator::Sub, BinaryOperator::Mul];
+    const BINARY_OPERATORS: &[BinaryOperator] = &[
+        BinaryOperator::Add,
+        BinaryOperator::Sub,
+        BinaryOperator::Mul,
+    ];
 
     impl BinaryOperator {
         fn apply<F: BinaryOperand>(&self, a: F, b: F) -> F {

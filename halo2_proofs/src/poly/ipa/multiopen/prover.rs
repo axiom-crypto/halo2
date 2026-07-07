@@ -77,8 +77,9 @@ impl<'params, C: CurveAffine> Prover<'params, IPACommitmentScheme<C>> for Prover
             .iter()
             .zip(q_polys.iter())
             .fold(None, |q_prime_poly, (points, poly)| {
-                let mut poly =
-                    points.iter().fold(poly.clone().unwrap().into_values(), |poly, point| {
+                let mut poly = points
+                    .iter()
+                    .fold(poly.clone().unwrap().into_values(), |poly, point| {
                         kate_division(&poly, *point)
                     });
                 poly.resize(self.params.n as usize, C::Scalar::ZERO);

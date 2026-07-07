@@ -127,8 +127,10 @@ impl<'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> Layouter<F>
             }
         } else {
             let constants_column = self.constants[0];
-            let next_constant_row =
-                self.columns.entry(Column::<Any>::from(constants_column).into()).or_default();
+            let next_constant_row = self
+                .columns
+                .entry(Column::<Any>::from(constants_column).into())
+                .or_default();
             for (constant, advice) in constants_to_assign {
                 self.cs.assign_fixed(
                     //|| format!("Constant({:?})", constant.evaluate()),
@@ -179,7 +181,8 @@ impl<'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> Layouter<F>
             // default_val must be Some because we must have assigned
             // at least one cell in each column, and in that case we checked
             // that all cells up to first_unused were assigned.
-            self.cs.fill_from_row(col.inner(), first_unused, default_val.unwrap())?;
+            self.cs
+                .fill_from_row(col.inner(), first_unused, default_val.unwrap())?;
         }
 
         Ok(())
@@ -239,7 +242,11 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> fmt::Debug
 
 impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> SingleChipLayouterRegion<'r, 'a, F, CS> {
     fn new(layouter: &'r mut SingleChipLayouter<'a, F, CS>, region_index: RegionIndex) -> Self {
-        SingleChipLayouterRegion { layouter, region_index, constants: vec![] }
+        SingleChipLayouterRegion {
+            layouter,
+            region_index,
+            constants: vec![],
+        }
     }
 }
 
@@ -296,7 +303,9 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> RegionLayouter<F>
         offset: usize,
         constant: Assigned<F>,
     ) -> Result<Cell, Error> {
-        let advice = self.assign_advice(column, offset, Value::known(constant)).cell;
+        let advice = self
+            .assign_advice(column, offset, Value::known(constant))
+            .cell;
         self.constrain_constant(advice, constant)?;
 
         Ok(advice)
@@ -312,7 +321,9 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> RegionLayouter<F>
     ) -> Result<(Cell, Value<F>), Error> {
         let value = self.layouter.cs.query_instance(instance, row)?;
 
-        let cell = self.assign_advice(advice, offset, value.map(|v| Assigned::Trivial(v))).cell;
+        let cell = self
+            .assign_advice(advice, offset, value.map(|v| Assigned::Trivial(v)))
+            .cell;
 
         self.layouter.cs.copy(
             cell.column,

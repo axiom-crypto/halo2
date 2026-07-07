@@ -274,8 +274,10 @@ impl Assembly {
 
         if let Some(cycle_idx) = self.aux.get(&(col, row)) {
             let cycle = &self.ordered_cycles[*cycle_idx];
-            let mut cycle_iter =
-                cycle.range((std::ops::Bound::Excluded((col, row)), std::ops::Bound::Unbounded));
+            let mut cycle_iter = cycle.range((
+                std::ops::Bound::Excluded((col, row)),
+                std::ops::Bound::Unbounded,
+            ));
             // point to the next node in the cycle
             match cycle_iter.next() {
                 Some((i, j)) => (*i, *j),
@@ -320,8 +322,11 @@ impl Assembly {
     ) -> impl Iterator<Item = impl IndexedParallelIterator<Item = (usize, usize)> + '_> {
         use crate::multicore::IntoParallelIterator;
 
-        (0..self.num_cols)
-            .map(move |i| (0..self.col_len).into_par_iter().map(move |j| self.mapping_at_idx(i, j)))
+        (0..self.num_cols).map(move |i| {
+            (0..self.col_len)
+                .into_par_iter()
+                .map(move |j| self.mapping_at_idx(i, j))
+        })
     }
 
     #[cfg(not(feature = "multicore"))]
@@ -389,7 +394,10 @@ pub(crate) fn build_pk<'params, C: CurveAffine, P: Params<'params, C>>(
         });
     }
 
-    ProvingKey { permutations, polys }
+    ProvingKey {
+        permutations,
+        polys,
+    }
 }
 
 pub(crate) fn build_vk<'params, C: CurveAffine, P: Params<'params, C>>(
@@ -444,7 +452,11 @@ pub(crate) fn build_vk<'params, C: CurveAffine, P: Params<'params, C>>(
     let mut commitments = Vec::with_capacity(p.columns.len());
     for permutation in &permutations {
         // Compute commitment to permutation polynomial
-        commitments.push(params.commit_lagrange(permutation, Blind::default()).to_affine());
+        commitments.push(
+            params
+                .commit_lagrange(permutation, Blind::default())
+                .to_affine(),
+        );
     }
 
     VerifyingKey { commitments }

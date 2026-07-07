@@ -27,7 +27,11 @@ impl<F: Field> Argument<F> {
     /// `table_map` is a sequence of `(input, table)` tuples.
     pub fn new<S: AsRef<str>>(name: S, table_map: Vec<(Expression<F>, Expression<F>)>) -> Self {
         let (input_expressions, table_expressions) = table_map.into_iter().unzip();
-        Argument { name: name.as_ref().to_string(), input_expressions, table_expressions }
+        Argument {
+            name: name.as_ref().to_string(),
+            input_expressions,
+            table_expressions,
+        }
     }
 
     pub(crate) fn required_degree(&self) -> usize {

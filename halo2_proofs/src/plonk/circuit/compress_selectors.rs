@@ -100,13 +100,23 @@ where
     // j and selector k conflict -- that is, they are both enabled on the same
     // row. This matrix is symmetric and the diagonal entries are false, so we
     // only need to store the lower triangular entries.
-    let mut exclusion_matrix = (0..selectors.len()).map(|i| vec![false; i]).collect::<Vec<_>>();
+    let mut exclusion_matrix = (0..selectors.len())
+        .map(|i| vec![false; i])
+        .collect::<Vec<_>>();
 
-    for (i, rows) in selectors.iter().map(|selector| &selector.activations).enumerate() {
+    for (i, rows) in selectors
+        .iter()
+        .map(|selector| &selector.activations)
+        .enumerate()
+    {
         // Loop over the selectors previous to this one
         for (j, other_selector) in selectors.iter().enumerate().take(i) {
             // Look at what selectors are active at the same row
-            if rows.iter().zip(other_selector.activations.iter()).any(|(l, r)| l & r) {
+            if rows
+                .iter()
+                .zip(other_selector.activations.iter())
+                .any(|(l, r)| l & r)
+            {
                 // Mark them as incompatible
                 exclusion_matrix[i][j] = true;
             }
@@ -191,8 +201,9 @@ where
             }
 
             // Update the combination assignment
-            for (combination, selector) in
-                combination_assignment.iter_mut().zip(selector.activations.iter())
+            for (combination, selector) in combination_assignment
+                .iter_mut()
+                .zip(selector.activations.iter())
             {
                 // This will not overwrite another selector's activations because
                 // we have ensured that selectors are disjoint.
@@ -203,7 +214,11 @@ where
 
             assigned_root += F::ONE;
 
-            SelectorAssignment { selector: selector.selector, combination_index, expression }
+            SelectorAssignment {
+                selector: selector.selector,
+                combination_index,
+                expression,
+            }
         }));
         combination_assignments.push(combination_assignment);
     }

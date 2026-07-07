@@ -112,17 +112,21 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
 
         // We can compute the expected msm_eval at x_3 using the u provided
         // by the prover and from x_2
-        let msm_eval = point_sets.iter().zip(q_eval_sets.iter()).zip(u.iter()).fold(
-            C::Scalar::ZERO,
-            |msm_eval, ((points, evals), proof_eval)| {
-                let r_poly = lagrange_interpolate(points, evals);
-                let r_eval = eval_polynomial(&r_poly, *x_3);
-                let eval = points.iter().fold(*proof_eval - &r_eval, |eval, point| {
-                    eval * &(*x_3 - point).invert().unwrap()
-                });
-                msm_eval * &(*x_2) + &eval
-            },
-        );
+        let msm_eval = point_sets
+            .iter()
+            .zip(q_eval_sets.iter())
+            .zip(u.iter())
+            .fold(
+                C::Scalar::ZERO,
+                |msm_eval, ((points, evals), proof_eval)| {
+                    let r_poly = lagrange_interpolate(points, evals);
+                    let r_eval = eval_polynomial(&r_poly, *x_3);
+                    let eval = points.iter().fold(*proof_eval - &r_eval, |eval, point| {
+                        eval * &(*x_3 - point).invert().unwrap()
+                    });
+                    msm_eval * &(*x_2) + &eval
+                },
+            );
 
         // Sample a challenge x_4 that we will use to collapse the openings of
         // the various remaining polynomials at x_3 together.

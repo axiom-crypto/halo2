@@ -98,8 +98,11 @@ where
 
         for current_phase in vk.cs.phases() {
             for advice_commitments in advice_commitments.iter_mut() {
-                for (phase, commitment) in
-                    vk.cs.advice_column_phase.iter().zip(advice_commitments.iter_mut())
+                for (phase, commitment) in vk
+                    .cs
+                    .advice_column_phase
+                    .iter()
+                    .zip(advice_commitments.iter_mut())
                 {
                     if current_phase == *phase {
                         *commitment = transcript.read_point()?;
@@ -173,15 +176,18 @@ where
     } else {
         let xn = x.pow([params.n()]);
         let (min_rotation, max_rotation) =
-            vk.cs.instance_queries.iter().fold((0, 0), |(min, max), (_, rotation)| {
-                if rotation.0 < min {
-                    (rotation.0, max)
-                } else if rotation.0 > max {
-                    (min, rotation.0)
-                } else {
-                    (min, max)
-                }
-            });
+            vk.cs
+                .instance_queries
+                .iter()
+                .fold((0, 0), |(min, max), (_, rotation)| {
+                    if rotation.0 < min {
+                        (rotation.0, max)
+                    } else if rotation.0 > max {
+                        (min, rotation.0)
+                    } else {
+                        (min, max)
+                    }
+                });
         let max_instance_len = instances
             .iter()
             .flat_map(|instance| instance.iter().map(|instance| instance.len()))
@@ -240,7 +246,9 @@ where
         let xn = x.pow([params.n()]);
 
         let blinding_factors = vk.cs.blinding_factors();
-        let l_evals = vk.domain.l_i_range(*x, xn, (-((blinding_factors + 1) as i32))..=0);
+        let l_evals = vk
+            .domain
+            .l_i_range(*x, xn, (-((blinding_factors + 1) as i32))..=0);
         assert_eq!(l_evals.len(), 2 + blinding_factors);
         let l_last = l_evals[0];
         let l_blind: Scheme::Scalar = l_evals[1..(1 + blinding_factors)]
@@ -354,13 +362,19 @@ where
                     .chain(lookups.iter().flat_map(move |p| p.queries(vk, x)))
             },
         )
-        .chain(vk.cs.fixed_queries.iter().enumerate().map(|(query_index, &(column, at))| {
-            VerifierQuery::new_commitment(
-                &vk.fixed_commitments[column.index()],
-                vk.domain.rotate_omega(*x, at),
-                fixed_evals[query_index],
-            )
-        }))
+        .chain(
+            vk.cs
+                .fixed_queries
+                .iter()
+                .enumerate()
+                .map(|(query_index, &(column, at))| {
+                    VerifierQuery::new_commitment(
+                        &vk.fixed_commitments[column.index()],
+                        vk.domain.rotate_omega(*x, at),
+                        fixed_evals[query_index],
+                    )
+                }),
+        )
         .chain(permutations_common.queries(&vk.permutation, x))
         .chain(vanishing.queries(x));
 
@@ -368,6 +382,9 @@ where
     // polynomial commitments open to the correct values.
 
     let verifier = V::new(params);
-    strategy
-        .process(|msm| verifier.verify_proof(transcript, queries, msm).map_err(|_| Error::Opening))
+    strategy.process(|msm| {
+        verifier
+            .verify_proof(transcript, queries, msm)
+            .map_err(|_| Error::Opening)
+    })
 }

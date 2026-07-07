@@ -254,7 +254,11 @@ mod test {
             .chain(Some(VerifierQuery::new_commitment(&b, x.get_scalar(), avx)))
             .chain(Some(VerifierQuery::new_commitment(&c, y.get_scalar(), cvy)));
 
-        let queries = if should_fail { invalid_queries.clone() } else { valid_queries.clone() };
+        let queries = if should_fail {
+            invalid_queries.clone()
+        } else {
+            valid_queries.clone()
+        };
 
         {
             let strategy = Strategy::new(params);
@@ -322,14 +326,28 @@ mod test {
         transcript.write_scalar(cvy).unwrap();
 
         let queries = [
-            ProverQuery { point: x.get_scalar(), poly: &ax, blind },
-            ProverQuery { point: x.get_scalar(), poly: &bx, blind },
-            ProverQuery { point: y.get_scalar(), poly: &cx, blind },
+            ProverQuery {
+                point: x.get_scalar(),
+                poly: &ax,
+                blind,
+            },
+            ProverQuery {
+                point: x.get_scalar(),
+                poly: &bx,
+                blind,
+            },
+            ProverQuery {
+                point: y.get_scalar(),
+                poly: &cx,
+                blind,
+            },
         ]
         .to_vec();
 
         let prover = P::new(params);
-        prover.create_proof(&mut OsRng, &mut transcript, queries).unwrap();
+        prover
+            .create_proof(&mut OsRng, &mut transcript, queries)
+            .unwrap();
 
         transcript.finalize()
     }

@@ -141,7 +141,11 @@ impl<F: Field> AssignedCell<Assigned<F>, F> {
     ///
     /// If the denominator is zero, the returned cell's value is zero.
     pub fn evaluate(self) -> AssignedCell<F, F> {
-        AssignedCell { value: self.value.evaluate(), cell: self.cell, _marker: Default::default() }
+        AssignedCell {
+            value: self.value.evaluate(),
+            cell: self.cell,
+            _marker: Default::default(),
+        }
     }
 }
 
@@ -196,7 +200,8 @@ impl<'r, F: Field> Region<'r, F> {
         A: Fn() -> AR,
         AR: Into<String>,
     {
-        self.region.enable_selector(&|| annotation().into(), selector, offset)
+        self.region
+            .enable_selector(&|| annotation().into(), selector, offset)
     }
 
     /// Allows the circuit implementor to name/annotate a Column within a Region context.
@@ -209,7 +214,8 @@ impl<'r, F: Field> Region<'r, F> {
         AR: Into<String>,
         T: Into<Column<Any>>,
     {
-        self.region.name_column(&|| annotation().into(), column.into());
+        self.region
+            .name_column(&|| annotation().into(), column.into());
     }
 
     /// Assign an advice column value (witness).
@@ -266,7 +272,11 @@ impl<'r, F: Field> Region<'r, F> {
             (&constant).into(),
         )?;
 
-        Ok(AssignedCell { value: Value::known(constant), cell, _marker: PhantomData })
+        Ok(AssignedCell {
+            value: Value::known(constant),
+            cell,
+            _marker: PhantomData,
+        })
     }
 
     /// Assign the value of the instance column's cell at absolute location
@@ -293,7 +303,11 @@ impl<'r, F: Field> Region<'r, F> {
             offset,
         )?;
 
-        Ok(AssignedCell { value, cell, _marker: PhantomData })
+        Ok(AssignedCell {
+            value,
+            cell,
+            _marker: PhantomData,
+        })
     }
 
     /// Returns the value of the instance column's cell at absolute location `row`.
@@ -392,7 +406,10 @@ impl<'r, F: Field> Table<'r, F> {
         A: Fn() -> AR,
         AR: Into<String>,
     {
-        self.table.assign_cell(&|| annotation().into(), column, offset, &mut || to().into_field())
+        self.table
+            .assign_cell(&|| annotation().into(), column, offset, &mut || {
+                to().into_field()
+            })
     }
 }
 

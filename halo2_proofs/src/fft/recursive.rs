@@ -36,7 +36,10 @@ fn get_stages(size: usize, radixes: Vec<usize>) -> Vec<FFTStage> {
             }
         }
         n /= p;
-        stages.push(FFTStage { radix: p, length: n });
+        stages.push(FFTStage {
+            radix: p,
+            length: n,
+        });
     }
 
     /*for i in 0..stages.len() {
@@ -81,7 +84,11 @@ impl<F: arithmetic::Field> FFTData<F> {
         for inv in 0..2 {
             let inverse = inv == 0;
             let o = if inverse { omega_inv } else { omega };
-            let stage_twiddles = if inverse { &mut inv_twiddles } else { &mut f_twiddles };
+            let stage_twiddles = if inverse {
+                &mut inv_twiddles
+            } else {
+                &mut f_twiddles
+            };
 
             let twiddles = &mut scratch;
 
@@ -173,8 +180,10 @@ fn butterfly_2_parallel<Scalar: Field, G: FftGroup<Scalar>>(
 
     multicore::scope(|scope| {
         let (part_a, part_b) = out.split_at_mut(n / 2);
-        for (i, (part0, part1)) in
-            part_a.chunks_mut(chunk).zip(part_b.chunks_mut(chunk)).enumerate()
+        for (i, (part0, part1)) in part_a
+            .chunks_mut(chunk)
+            .zip(part_b.chunks_mut(chunk))
+            .enumerate()
         {
             scope.spawn(move |_| {
                 let offset = i * chunk;
@@ -321,10 +330,17 @@ fn recursive_fft_inner<Scalar: Field, G: FftGroup<Scalar>>(
                 data_out[i] = data_in[in_offset + i * stride];
             }
         } else {
-            let num_threads_recursive = if num_threads >= radix { radix } else { num_threads };
+            let num_threads_recursive = if num_threads >= radix {
+                radix
+            } else {
+                num_threads
+            };
             parallelize_count(data_out, num_threads_recursive, |data_out, i| {
-                let num_threads_in_recursion =
-                    if num_threads < radix { 1 } else { (num_threads + i) / radix };
+                let num_threads_in_recursion = if num_threads < radix {
+                    1
+                } else {
+                    (num_threads + i) / radix
+                };
                 recursive_fft_inner(
                     data_in,
                     data_out,
@@ -387,7 +403,11 @@ fn recursive_fft<Scalar: Field, G: FftGroup<Scalar>>(
     recursive_fft_inner(
         data_in,
         &mut /*data.*/scratch,
-        if inverse { &data.inv_twiddles } else { &data.f_twiddles },
+        if inverse {
+            &data.inv_twiddles
+        } else {
+            &data.f_twiddles
+        },
         &data.stages,
         0,
         1,

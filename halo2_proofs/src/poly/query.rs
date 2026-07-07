@@ -51,19 +51,30 @@ impl<'com, C: CurveAffine> Query<C::Scalar> for ProverQuery<'com, C> {
         eval_polynomial(&self.poly[..], self.get_point())
     }
     fn get_commitment(&self) -> Self::Commitment {
-        PolynomialPointer { poly: self.poly, blind: self.blind }
+        PolynomialPointer {
+            poly: self.poly,
+            blind: self.blind,
+        }
     }
 }
 
 impl<'com, C: CurveAffine, M: MSM<C>> VerifierQuery<'com, C, M> {
     /// Create a new verifier query based on a commitment
     pub fn new_commitment(commitment: &'com C, point: C::Scalar, eval: C::Scalar) -> Self {
-        VerifierQuery { point, eval, commitment: CommitmentReference::Commitment(commitment) }
+        VerifierQuery {
+            point,
+            eval,
+            commitment: CommitmentReference::Commitment(commitment),
+        }
     }
 
     /// Create a new verifier query based on a linear combination of commitments
     pub fn new_msm(msm: &'com M, point: C::Scalar, eval: C::Scalar) -> VerifierQuery<'com, C, M> {
-        VerifierQuery { point, eval, commitment: CommitmentReference::MSM(msm) }
+        VerifierQuery {
+            point,
+            eval,
+            commitment: CommitmentReference::MSM(msm),
+        }
     }
 }
 
@@ -80,7 +91,11 @@ pub struct VerifierQuery<'com, C: CurveAffine, M: MSM<C>> {
 
 impl<'com, C: CurveAffine, M: MSM<C>> Clone for VerifierQuery<'com, C, M> {
     fn clone(&self) -> Self {
-        Self { point: self.point, commitment: self.commitment, eval: self.eval }
+        Self {
+            point: self.point,
+            commitment: self.commitment,
+            eval: self.eval,
+        }
     }
 }
 

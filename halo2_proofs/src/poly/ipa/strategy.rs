@@ -55,7 +55,10 @@ impl<'params, C: CurveAffine> GuardIPA<'params, C> {
     pub fn use_g(mut self, g: C) -> (MSMIPA<'params, C>, Accumulator<C>) {
         self.msm.append_term(self.neg_c, g.into());
 
-        let accumulator = Accumulator { g, u_packed: self.u_packed };
+        let accumulator = Accumulator {
+            g,
+            u_packed: self.u_packed,
+        };
 
         (self.msm, accumulator)
     }
@@ -81,7 +84,9 @@ impl<'params, C: CurveAffine>
     type Output = Self;
 
     fn new(params: &'params ParamsIPA<C>) -> Self {
-        AccumulatorStrategy { msm: MSMIPA::new(params) }
+        AccumulatorStrategy {
+            msm: MSMIPA::new(params),
+        }
     }
 
     fn process(
@@ -91,7 +96,9 @@ impl<'params, C: CurveAffine>
         self.msm.scale(C::Scalar::random(OsRng));
         let guard = f(self.msm)?;
 
-        Ok(Self { msm: guard.use_challenges() })
+        Ok(Self {
+            msm: guard.use_challenges(),
+        })
     }
 
     /// Finalizes the batch and checks its validity.
@@ -117,7 +124,9 @@ impl<'params, C: CurveAffine>
     type Output = ();
 
     fn new(params: &'params ParamsIPA<C>) -> Self {
-        SingleStrategy { msm: MSMIPA::new(params) }
+        SingleStrategy {
+            msm: MSMIPA::new(params),
+        }
     }
 
     fn process(

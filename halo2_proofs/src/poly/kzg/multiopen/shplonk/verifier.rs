@@ -58,8 +58,10 @@ where
         I: IntoIterator<Item = VerifierQuery<'com, E::G1Affine, MSMKZG<E>>> + Clone,
     {
         let intermediate_sets = construct_intermediate_sets(queries).ok_or(Error::OpeningError)?;
-        let (rotation_sets, super_point_set) =
-            (intermediate_sets.rotation_sets, intermediate_sets.super_point_set);
+        let (rotation_sets, super_point_set) = (
+            intermediate_sets.rotation_sets,
+            intermediate_sets.super_point_set,
+        );
 
         let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
         let v: ChallengeV<_> = transcript.squeeze_challenge_scalar();

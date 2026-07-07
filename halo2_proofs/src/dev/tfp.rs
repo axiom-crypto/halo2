@@ -141,7 +141,8 @@ impl<'c, F: Field, C: Circuit<F>> Circuit<F> for TracingCircuit<'c, F, C> {
 
     fn synthesize(&self, config: Self::Config, layouter: impl Layouter<F>) -> Result<(), Error> {
         let _span = debug_span!("synthesize").entered();
-        self.inner_ref().synthesize(config, TracingLayouter::new(layouter))
+        self.inner_ref()
+            .synthesize(config, TracingLayouter::new(layouter))
     }
 }
 
@@ -154,7 +155,11 @@ struct TracingLayouter<F: Field, L: Layouter<F>> {
 
 impl<F: Field, L: Layouter<F>> TracingLayouter<F, L> {
     fn new(layouter: L) -> Self {
-        Self { layouter, namespace_spans: vec![], _phantom: PhantomData }
+        Self {
+            layouter,
+            namespace_spans: vec![],
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -299,12 +304,14 @@ impl<'r, F: Field> RegionLayouter<F> for TracingRegion<'r, F> {
         )
         .entered();
         debug!(target: "layouter", "Entered");
-        self.0.assign_advice_from_instance(annotation, instance, row, advice, offset).map(|value| {
-            if let Some(v) = value.value().into_option() {
-                debug!(target: "assigned", value = ?v);
-            }
-            (value.cell(), value.value().cloned())
-        })
+        self.0
+            .assign_advice_from_instance(annotation, instance, row, advice, offset)
+            .map(|value| {
+                if let Some(v) = value.value().into_option() {
+                    debug!(target: "assigned", value = ?v);
+                }
+                (value.cell(), value.value().cloned())
+            })
     }
 
     fn instance_value(
@@ -358,7 +365,11 @@ struct TracingAssignment<'cs, F: Field, CS: Assignment<F>> {
 
 impl<'cs, F: Field, CS: Assignment<F>> TracingAssignment<'cs, F, CS> {
     fn new(cs: &'cs mut CS) -> Self {
-        Self { cs, in_region: false, _phantom: PhantomData }
+        Self {
+            cs,
+            in_region: false,
+            _phantom: PhantomData,
+        }
     }
 }
 

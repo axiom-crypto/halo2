@@ -204,21 +204,37 @@ pub enum VerifyFailure {
 impl fmt::Display for VerifyFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CellNotAssigned { gate, region, gate_offset, column, offset } => {
+            Self::CellNotAssigned {
+                gate,
+                region,
+                gate_offset,
+                column,
+                offset,
+            } => {
                 write!(
                     f,
                     "{} uses {} at offset {}, which requires cell in column {:?} at offset {} with annotation {:?} to be assigned.",
                     region, gate, gate_offset, column, offset, region.get_column_annotation((*column).into())
                 )
             }
-            Self::InstanceCellNotAssigned { gate, region, gate_offset, column, row } => {
+            Self::InstanceCellNotAssigned {
+                gate,
+                region,
+                gate_offset,
+                column,
+                row,
+            } => {
                 write!(
                     f,
                     "{} uses {} at offset {}, which requires cell in instance column {:?} at row {} to be assigned.",
                     region, gate, gate_offset, column, row
                 )
             }
-            Self::ConstraintNotSatisfied { constraint, location, cell_values } => {
+            Self::ConstraintNotSatisfied {
+                constraint,
+                location,
+                cell_values,
+            } => {
                 writeln!(f, "{} is not satisfied {}", constraint, location)?;
                 for (dvc, value) in cell_values.iter().map(|(vc, string)| {
                     let ann_map = match location {
@@ -235,10 +251,22 @@ impl fmt::Display for VerifyFailure {
                 Ok(())
             }
             Self::ConstraintPoisoned { constraint } => {
-                write!(f, "{} is active on an unusable row - missing selector?", constraint)
+                write!(
+                    f,
+                    "{} is active on an unusable row - missing selector?",
+                    constraint
+                )
             }
-            Self::Lookup { name, lookup_index, location } => {
-                write!(f, "Lookup {}(index: {}) is not satisfied {}", name, lookup_index, location)
+            Self::Lookup {
+                name,
+                lookup_index,
+                location,
+            } => {
+                write!(
+                    f,
+                    "Lookup {}(index: {}) is not satisfied {}",
+                    name, lookup_index, location
+                )
             }
             Self::Permutation { column, location } => {
                 write!(
@@ -255,7 +283,11 @@ impl fmt::Display for VerifyFailure {
 impl Debug for VerifyFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            VerifyFailure::ConstraintNotSatisfied { constraint, location, cell_values } => {
+            VerifyFailure::ConstraintNotSatisfied {
+                constraint,
+                location,
+                cell_values,
+            } => {
                 #[allow(dead_code)]
                 #[derive(Debug)]
                 struct ConstraintCaseDebug {
@@ -277,7 +309,10 @@ impl Debug for VerifyFailure {
                     cell_values: cell_values
                         .iter()
                         .map(|(vc, value)| {
-                            (DebugVirtualCell::from((vc, ann_map.as_ref())), value.clone())
+                            (
+                                DebugVirtualCell::from((vc, ann_map.as_ref())),
+                                value.clone(),
+                            )
                         })
                         .collect(),
                 };
@@ -318,19 +353,26 @@ fn render_cell_not_assigned<F: Field>(
     for (i, cell) in gates[gate.index].queried_cells().iter().enumerate() {
         let cell_column = cell.column.into();
         *columns.entry(cell_column).or_default() += 1;
-        layout.entry(cell.rotation.0).or_default().entry(cell_column).or_insert_with(|| {
-            if cell.column == column && gate_offset as i32 + cell.rotation.0 == offset as i32 {
-                "X".to_string()
-            } else {
-                format!("x{}", i)
-            }
-        });
+        layout
+            .entry(cell.rotation.0)
+            .or_default()
+            .entry(cell_column)
+            .or_insert_with(|| {
+                if cell.column == column && gate_offset as i32 + cell.rotation.0 == offset as i32 {
+                    "X".to_string()
+                } else {
+                    format!("x{}", i)
+                }
+            });
     }
 
     eprintln!("error: cell not assigned");
     emitter::render_cell_layout(
         "  ",
-        &FailureLocation::InRegion { region: region.clone(), offset: gate_offset },
+        &FailureLocation::InRegion {
+            region: region.clone(),
+            offset: gate_offset,
+        },
         &columns,
         &layout,
         |row_offset, rotation| {
@@ -340,7 +382,10 @@ fn render_cell_not_assigned<F: Field>(
         },
     );
     eprintln!();
-    eprintln!("  Gate '{}' (applied at offset {}) queries these cells.", gate.name, gate_offset);
+    eprintln!(
+        "  Gate '{}' (applied at offset {}) queries these cells.",
+        gate.name, gate_offset
+    );
 }
 
 /// Renders `VerifyFailure::ConstraintNotSatisfied`.
@@ -374,7 +419,11 @@ fn render_constraint_not_satisfied<F: Field>(
     let mut layout = BTreeMap::<i32, BTreeMap<metadata::Column, _>>::default();
     for (i, (cell, _)) in cell_values.iter().enumerate() {
         *columns.entry(cell.column).or_default() += 1;
-        layout.entry(cell.rotation).or_default().entry(cell.column).or_insert(format!("x{}", i));
+        layout
+            .entry(cell.rotation)
+            .or_default()
+            .entry(cell.column)
+            .or_insert(format!("x{}", i));
     }
 
     eprintln!("error: constraint not satisfied");
@@ -491,7 +540,12 @@ fn render_lookup<F: Field>(
         load: impl Fn(Q) -> Value<F> + 'a,
     ) -> impl Fn(Q) -> BTreeMap<metadata::VirtualCell, String> + 'a {
         move |query| {
-            let AnyQuery { column_type, column_index, rotation, .. } = query.into();
+            let AnyQuery {
+                column_type,
+                column_index,
+                rotation,
+                ..
+            } = query.into();
             Some((
                 ((column_type, column_index).into(), rotation.0).into(),
                 match load(query) {
@@ -538,7 +592,12 @@ fn render_lookup<F: Field>(
             &|_| panic!("virtual selectors are removed during optimization"),
             &cell_value(&util::load(n, row, &cs.fixed_queries, &prover.fixed)),
             &cell_value(&util::load(n, row, &cs.advice_queries, &advice)),
-            &cell_value(&util::load_instance(n, row, &cs.instance_queries, &prover.instance)),
+            &cell_value(&util::load_instance(
+                n,
+                row,
+                &cs.instance_queries,
+                &prover.instance,
+            )),
             &|_| BTreeMap::default(),
             &|a| a,
             &|mut a, mut b| {
@@ -570,7 +629,11 @@ fn render_lookup<F: Field>(
         if i != 0 {
             eprintln!();
         }
-        eprintln!("    L{} = {}", i, emitter::expression_to_string(input, &layout));
+        eprintln!(
+            "    L{} = {}",
+            i,
+            emitter::expression_to_string(input, &layout)
+        );
         eprintln!("    ^");
 
         emitter::render_cell_layout("    | ", location, &columns, &layout, |_, rotation| {
@@ -592,22 +655,32 @@ impl VerifyFailure {
     /// Emits this failure in pretty-printed format to stderr.
     pub(super) fn emit<F: Field>(&self, prover: &MockProver<F>) {
         match self {
-            Self::CellNotAssigned { gate, region, gate_offset, column, offset } => {
-                render_cell_not_assigned(
-                    &prover.cs.gates,
-                    gate,
-                    region,
-                    *gate_offset,
-                    *column,
-                    *offset,
-                )
-            }
-            Self::ConstraintNotSatisfied { constraint, location, cell_values } => {
+            Self::CellNotAssigned {
+                gate,
+                region,
+                gate_offset,
+                column,
+                offset,
+            } => render_cell_not_assigned(
+                &prover.cs.gates,
+                gate,
+                region,
+                *gate_offset,
+                *column,
+                *offset,
+            ),
+            Self::ConstraintNotSatisfied {
+                constraint,
+                location,
+                cell_values,
+            } => {
                 render_constraint_not_satisfied(&prover.cs.gates, constraint, location, cell_values)
             }
-            Self::Lookup { name, lookup_index, location } => {
-                render_lookup(prover, name, *lookup_index, location)
-            }
+            Self::Lookup {
+                name,
+                lookup_index,
+                location,
+            } => render_lookup(prover, name, *lookup_index, location),
             _ => eprintln!("{}", self),
         }
     }

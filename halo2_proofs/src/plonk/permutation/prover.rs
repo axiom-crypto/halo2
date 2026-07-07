@@ -80,8 +80,10 @@ impl Argument {
 
         let mut sets = vec![];
 
-        for (columns, permutations) in
-            self.columns.chunks(chunk_len).zip(pkey.permutations.chunks(chunk_len))
+        for (columns, permutations) in self
+            .columns
+            .chunks(chunk_len)
+            .zip(pkey.permutations.chunks(chunk_len))
         {
             // Goal is to compute the products of fractions
             //
@@ -125,8 +127,9 @@ impl Argument {
                 };
                 parallelize(&mut modified_values, |modified_values, start| {
                     let mut deltaomega = deltaomega * &omega.pow_vartime([start as u64, 0, 0, 0]);
-                    for (modified_values, value) in
-                        modified_values.iter_mut().zip(values[column.index()][start..].iter())
+                    for (modified_values, value) in modified_values
+                        .iter_mut()
+                        .zip(values[column.index()][start..].iter())
                     {
                         // Multiply by p_j(\omega^i) + \delta^j \omega^i \beta
                         *modified_values *= &(deltaomega * &*beta + &*gamma + value);
@@ -175,7 +178,10 @@ impl Argument {
             // Hash the permutation product commitment
             transcript.write_point(permutation_product_commitment)?;
 
-            sets.push(CommittedSet { permutation_product_poly, permutation_product_blind });
+            sets.push(CommittedSet {
+                permutation_product_poly,
+                permutation_product_blind,
+            });
         }
 
         Ok(Committed { sets })
@@ -202,7 +208,11 @@ impl<C: CurveAffine> super::ProvingKey<C> {
         &self,
         x: ChallengeX<C>,
     ) -> impl Iterator<Item = ProverQuery<'_, C>> + Clone {
-        self.polys.iter().map(move |poly| ProverQuery { point: *x, poly, blind: Blind::default() })
+        self.polys.iter().map(move |poly| ProverQuery {
+            point: *x,
+            poly,
+            blind: Blind::default(),
+        })
     }
 
     pub(in crate::plonk) fn evaluate<E: EncodedChallenge<C>, T: TranscriptWrite<C, E>>(
@@ -274,7 +284,10 @@ impl<C: CurveAffine> Evaluated<C> {
     ) -> impl Iterator<Item = ProverQuery<'a, C>> + Clone {
         let blinding_factors = pk.vk.cs.blinding_factors();
         let x_next = pk.vk.domain.rotate_omega(*x, Rotation::next());
-        let x_last = pk.vk.domain.rotate_omega(*x, Rotation(-((blinding_factors + 1) as i32)));
+        let x_last = pk
+            .vk
+            .domain
+            .rotate_omega(*x, Rotation(-((blinding_factors + 1) as i32)));
 
         iter::empty()
             .chain(self.constructed.sets.iter().flat_map(move |set| {
@@ -294,12 +307,19 @@ impl<C: CurveAffine> Evaluated<C> {
             // Open it at \omega^{last} x for all but the last set. This rotation is only
             // sensical for the first row, but we only use this rotation in a constraint
             // that is gated on l_0.
-            .chain(self.constructed.sets.iter().rev().skip(1).flat_map(move |set| {
-                Some(ProverQuery {
-                    point: x_last,
-                    poly: &set.permutation_product_poly,
-                    blind: set.permutation_product_blind,
-                })
-            }))
+            .chain(
+                self.constructed
+                    .sets
+                    .iter()
+                    .rev()
+                    .skip(1)
+                    .flat_map(move |set| {
+                        Some(ProverQuery {
+                            point: x_last,
+                            poly: &set.permutation_product_poly,
+                            blind: set.permutation_product_blind,
+                        })
+                    }),
+            )
     }
 }

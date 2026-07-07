@@ -238,9 +238,16 @@ impl CircuitGates {
                     )
                 })
             })
-            .fold((0, 0, 0), |(acc_n, acc_a, acc_m), (n, a, m)| (acc_n + n, acc_a + a, acc_m + m));
+            .fold((0, 0, 0), |(acc_n, acc_a, acc_m), (n, a, m)| {
+                (acc_n + n, acc_a + a, acc_m + m)
+            });
 
-        CircuitGates { gates, total_negations, total_additions, total_multiplications }
+        CircuitGates {
+            gates,
+            total_negations,
+            total_additions,
+            total_multiplications,
+        }
     }
 
     /// Prints the queries in this circuit to a CSV grid.
@@ -295,7 +302,10 @@ impl fmt::Display for CircuitGates {
         writeln!(
             f,
             "Total custom constraint polynomials: {}",
-            self.gates.iter().map(|gate| gate.constraints.len()).sum::<usize>()
+            self.gates
+                .iter()
+                .map(|gate| gate.constraints.len())
+                .sum::<usize>()
         )?;
         writeln!(f, "Total negations: {}", self.total_negations)?;
         writeln!(f, "Total additions: {}", self.total_additions)?;

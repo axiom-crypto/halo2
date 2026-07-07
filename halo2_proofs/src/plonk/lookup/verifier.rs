@@ -43,7 +43,10 @@ impl<F: Field> Argument<F> {
         let permuted_input_commitment = transcript.read_point()?;
         let permuted_table_commitment = transcript.read_point()?;
 
-        Ok(PermutationCommitments { permuted_input_commitment, permuted_table_commitment })
+        Ok(PermutationCommitments {
+            permuted_input_commitment,
+            permuted_table_commitment,
+        })
     }
 }
 
@@ -57,7 +60,10 @@ impl<C: CurveAffine> PermutationCommitments<C> {
     ) -> Result<Committed<C>, Error> {
         let product_commitment = transcript.read_point()?;
 
-        Ok(Committed { permuted: self, product_commitment })
+        Ok(Committed {
+            permuted: self,
+            product_commitment,
+        })
     }
 }
 

@@ -58,7 +58,11 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> fmt::Debug for SimpleTableLayoute
 impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> SimpleTableLayouter<'r, 'a, F, CS> {
     /// Returns a new SimpleTableLayouter
     pub fn new(cs: &'a mut CS, used_columns: &'r [TableColumn]) -> Self {
-        SimpleTableLayouter { cs, used_columns, default_and_assigned: HashMap::default() }
+        SimpleTableLayouter {
+            cs,
+            used_columns,
+            default_and_assigned: HashMap::default(),
+        }
     }
 }
 
@@ -139,7 +143,9 @@ pub(crate) fn compute_table_lengths<F: Debug>(
             } else {
                 let mut cols = [(*col, col_len), (acc.0.unwrap(), acc.1)];
                 cols.sort();
-                Err(Error::TableError(TableError::UnevenColumnLengths(cols[0], cols[1])))
+                Err(Error::TableError(TableError::UnevenColumnLengths(
+                    cols[0], cols[1],
+                )))
             }
         })
         .map(|col_len| col_len.1)

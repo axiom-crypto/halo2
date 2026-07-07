@@ -92,8 +92,10 @@ where
             let (_, rotation_set) = commitment_rotation_set;
             rotation_set.insert(rotation);
         } else {
-            commitment_rotation_set_map
-                .push((query.get_commitment(), FxHashSet::from_iter(core::iter::once(rotation))));
+            commitment_rotation_set_map.push((
+                query.get_commitment(),
+                FxHashSet::from_iter(core::iter::once(rotation)),
+            ));
         };
     }
 
@@ -105,8 +107,9 @@ where
     // ...
     let mut rotation_set_commitment_map: Vec<(FxHashSet<F>, Vec<Q::Commitment>)> = vec![];
     for (commitment, rotation_set) in commitment_rotation_set_map.into_iter() {
-        if let Some(rotation_set_commitment) =
-            rotation_set_commitment_map.iter_mut().find(|(set, _)| set == &rotation_set)
+        if let Some(rotation_set_commitment) = rotation_set_commitment_map
+            .iter_mut()
+            .find(|(set, _)| set == &rotation_set)
         {
             let (_, commitments) = rotation_set_commitment;
             commitments.push(commitment);
@@ -131,11 +134,17 @@ where
                 })
                 .collect();
 
-            RotationSet { commitments, points: rotations.into_iter().collect() }
+            RotationSet {
+                commitments,
+                points: rotations.into_iter().collect(),
+            }
         })
         .collect::<Vec<RotationSet<_, _>>>();
 
-    let sets = IntermediateSets { rotation_sets, super_point_set };
+    let sets = IntermediateSets {
+        rotation_sets,
+        super_point_set,
+    };
     Some(sets)
 }
 

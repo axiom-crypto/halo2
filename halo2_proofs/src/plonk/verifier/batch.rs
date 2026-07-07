@@ -37,7 +37,9 @@ impl<'params, C: CurveAffine>
     type Output = MSMIPA<'params, C>;
 
     fn new(params: &'params ParamsVerifierIPA<C>) -> Self {
-        BatchStrategy { msm: MSMIPA::new(params) }
+        BatchStrategy {
+            msm: MSMIPA::new(params),
+        }
     }
 
     fn process(
@@ -107,8 +109,11 @@ where
             .into_par_iter()
             .enumerate()
             .map(|(i, item)| {
-                let instances: Vec<Vec<_>> =
-                    item.instances.iter().map(|i| i.iter().map(|c| &c[..]).collect()).collect();
+                let instances: Vec<Vec<_>> = item
+                    .instances
+                    .iter()
+                    .map(|i| i.iter().map(|c| &c[..]).collect())
+                    .collect();
                 let instances: Vec<_> = instances.iter().map(|i| &i[..]).collect();
 
                 let strategy = BatchStrategy::new(params);

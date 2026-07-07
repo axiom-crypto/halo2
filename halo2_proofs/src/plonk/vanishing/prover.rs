@@ -60,7 +60,10 @@ impl<C: CurveAffine> Argument<C> {
         let c = params.commit(&random_poly, random_blind).to_affine();
         transcript.write_point(c)?;
 
-        Ok(Committed { random_poly, random_blind })
+        Ok(Committed {
+            random_poly,
+            random_blind,
+        })
     }
 }
 
@@ -91,8 +94,10 @@ impl<C: CurveAffine> Committed<C> {
             .map(|v| domain.coeff_from_vec(v.to_vec()))
             .collect::<Vec<_>>();
         drop(h_poly);
-        let h_blinds: Vec<_> =
-            h_pieces.iter().map(|_| Blind(C::Scalar::random(&mut rng))).collect();
+        let h_blinds: Vec<_> = h_pieces
+            .iter()
+            .map(|_| Blind(C::Scalar::random(&mut rng)))
+            .collect();
 
         // Compute commitments to each h(X) piece
         let h_commitments_projective: Vec<_> = h_pieces
@@ -109,7 +114,11 @@ impl<C: CurveAffine> Committed<C> {
             transcript.write_point(*c)?;
         }
 
-        Ok(Constructed { h_pieces, h_blinds, committed: self })
+        Ok(Constructed {
+            h_pieces,
+            h_blinds,
+            committed: self,
+        })
     }
 }
 
@@ -121,8 +130,11 @@ impl<C: CurveAffine> Constructed<C> {
         domain: &EvaluationDomain<C::Scalar>,
         transcript: &mut T,
     ) -> Result<Evaluated<C>, Error> {
-        let h_poly =
-            self.h_pieces.iter().rev().fold(domain.empty_coeff(), |acc, eval| acc * xn + eval);
+        let h_poly = self
+            .h_pieces
+            .iter()
+            .rev()
+            .fold(domain.empty_coeff(), |acc, eval| acc * xn + eval);
 
         let h_blind = self
             .h_blinds
@@ -133,7 +145,11 @@ impl<C: CurveAffine> Constructed<C> {
         let random_eval = eval_polynomial(&self.committed.random_poly, *x);
         transcript.write_scalar(random_eval)?;
 
-        Ok(Evaluated { h_poly, h_blind, committed: self.committed })
+        Ok(Evaluated {
+            h_poly,
+            h_blind,
+            committed: self.committed,
+        })
     }
 }
 
@@ -143,7 +159,11 @@ impl<C: CurveAffine> Evaluated<C> {
         x: ChallengeX<C>,
     ) -> impl Iterator<Item = ProverQuery<'_, C>> + Clone {
         iter::empty()
-            .chain(Some(ProverQuery { point: *x, poly: &self.h_poly, blind: self.h_blind }))
+            .chain(Some(ProverQuery {
+                point: *x,
+                poly: &self.h_poly,
+                blind: self.h_blind,
+            }))
             .chain(Some(ProverQuery {
                 point: *x,
                 poly: &self.committed.random_poly,
