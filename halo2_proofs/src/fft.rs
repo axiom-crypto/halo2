@@ -9,15 +9,7 @@ pub mod baseline;
 pub mod parallel;
 pub mod recursive;
 
-/// Runtime dispatcher to the recursive FFT implementation.
-///
-/// halo2-axiom-gpu re-exports this dispatcher and relies on it always taking
-/// the `recursive::fft` path (its GPU build deliberately avoids `parallel::fft`).
-/// To keep that contract while still letting halo2-axiom-gpu re-export this
-/// function instead of forking a duplicate dispatcher, the x86_64 branch into
-/// `parallel::fft` is commented out — `parallel::fft` is still pub-accessible
-/// at `halo2_axiom::fft::parallel::fft` for any caller that wants it
-/// explicitly.
+/// Runtime dispatcher to concrete FFT implementation
 pub fn fft<Scalar: Field, G: FftGroup<Scalar>>(
     a: &mut [G],
     omega: Scalar,
@@ -25,12 +17,10 @@ pub fn fft<Scalar: Field, G: FftGroup<Scalar>>(
     data: &FFTData<Scalar>,
     inverse: bool,
 ) {
-    // Original x86_64 fast-path, retained for reference:
-    // // Empirically, the parallel implementation requires less memory bandwidth, which is more performant on x86_64.
-    // #[cfg(target_arch = "x86_64")]
-    // parallel::fft(a, omega, log_n, data, inverse);
-    // #[cfg(not(target_arch = "x86_64"))]
-    // recursive::fft(a, omega, log_n, data, inverse)
+    // Empirically, the parallel implementation requires less memory bandwidth, which is more performant on x86_64.
+    #[cfg(target_arch = "x86_64")]
+    parallel::fft(a, omega, log_n, data, inverse);
+    #[cfg(not(target_arch = "x86_64"))]
     recursive::fft(a, omega, log_n, data, inverse)
 }
 
