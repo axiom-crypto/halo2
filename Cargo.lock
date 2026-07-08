@@ -94,6 +94,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
+dependencies = [
+ "serde",
+ "unty",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -732,6 +742,7 @@ dependencies = [
  "ark-std",
  "assert_matches",
  "backtrace",
+ "bincode",
  "blake2b_simd",
  "criterion",
  "crossbeam",
@@ -751,6 +762,7 @@ dependencies = [
  "rand_core",
  "rayon",
  "rustc-hash",
+ "serde",
  "sha3",
  "tabbycat",
  "tracing",
@@ -1616,6 +1628,12 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
 
 [[package]]
 name = "version_check"

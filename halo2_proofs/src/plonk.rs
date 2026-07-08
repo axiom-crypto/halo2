@@ -325,6 +325,32 @@ pub struct ProvingKey<C: CurveAffine> {
     ev: Evaluator<C>,
 }
 
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct Halo2PerformanceHints {
+    pub ctx_advice_shape: Option<usize>,
+    pub advice_equalities: Option<usize>,
+    pub constant_equalities: Option<usize>,
+}
+
+impl Halo2PerformanceHints {
+    fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
+        bincode::serde::encode_into_std_write(self, writer, bincode::config::standard())
+            .map(|_| ())
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))
+    }
+
+    fn read<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+        bincode::serde::decode_from_std_read(reader, bincode::config::standard())
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+    }
+
+    fn bytes_length(&self) -> usize {
+        bincode::serde::encode_to_vec(self, bincode::config::standard())
+            .expect("serializing Halo2PerformanceHints should not fail")
+            .len()
+    }
+}
+
 impl<C: CurveAffine> ProvingKey<C> {
     /// Returns the coefficient-basis polynomial `l0` (1 at the first row, 0 elsewhere).
     pub fn l0(&self) -> &Polynomial<C::Scalar, Coeff> {

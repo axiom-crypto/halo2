@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 
 use ff::Field;
 use rustc_hash::FxHashMap;
+use tracing::info_span;
 
 use crate::circuit::AssignedCell;
 use crate::{
@@ -119,6 +120,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> Layouter<F>
         let constants_to_assign = region.constants;
         self.cs.exit_region();
 
+        let _assign_constants = info_span!("assign_constants").entered();
         // Assign constants. For the simple floor planner, we assign constants in order in
         // the first `constants` column.
         if self.constants.is_empty() {

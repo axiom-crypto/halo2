@@ -6,6 +6,7 @@ use std::{
 };
 
 use ff::Field;
+use rustc_hash::FxHashMap;
 
 use crate::plonk::{Assigned, Assignment, Error, TableColumn, TableError};
 
@@ -43,7 +44,7 @@ pub struct SimpleTableLayouter<'r, 'a, F: Field, CS: Assignment<F> + 'a> {
     cs: &'a mut CS,
     used_columns: &'r [TableColumn],
     /// maps from a fixed column to a pair (default value, vector saying which rows are assigned)
-    pub default_and_assigned: HashMap<TableColumn, (DefaultTableValue<F>, Vec<bool>)>,
+    pub default_and_assigned: FxHashMap<TableColumn, (DefaultTableValue<F>, Vec<bool>)>,
 }
 
 impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> fmt::Debug for SimpleTableLayouter<'r, 'a, F, CS> {
@@ -114,7 +115,7 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> TableLayouter<F>
 }
 
 pub(crate) fn compute_table_lengths<F: Debug>(
-    default_and_assigned: &HashMap<TableColumn, (DefaultTableValue<F>, Vec<bool>)>,
+    default_and_assigned: &FxHashMap<TableColumn, (DefaultTableValue<F>, Vec<bool>)>,
 ) -> Result<usize, Error> {
     let column_lengths: Result<Vec<_>, Error> = default_and_assigned
         .iter()
