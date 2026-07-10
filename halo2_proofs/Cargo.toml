@@ -1,6 +1,6 @@
 [package]
 name = "halo2-axiom"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
     "Sean Bowe <sean@electriccoin.co>",
     "Ying Tong Lai <yingtong@electriccoin.co>",
@@ -11,14 +11,12 @@ authors = [
     "Intrinsic Technologies",
 ]
 edition = "2021"
-rust-version = "1.73.0"
+rust-version = "1.85.1"
 description = """
 Fast PLONK-based zero-knowledge proving system.
 This is a fork of <https://github.com/privacy-scaling-explorations/halo2>, which is itself a fork of ZCash's "halo2_proofs" crate.
 This fork uses the KZG polynomial commitment scheme for the proving backend, which requires a one-time universal trusted setup.
 Publishing this crate for better versioning in Axiom's production usage.
-
-This crate requires rust nightly to build.
 """
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/axiom-crypto/halo2"
