@@ -1,6 +1,6 @@
 [package]
 name = "halo2-axiom"
-version = "0.5.2"
+version = "0.5.3"
 authors = [
     "Sean Bowe <sean@electriccoin.co>",
     "Ying Tong Lai <yingtong@electriccoin.co>",
@@ -57,7 +57,7 @@ crossbeam = "0.8"
 ff = "0.13"
 group = "0.13"
 pairing = "0.23"
-halo2curves = { package = "halo2curves-axiom", version = "0.7.0", default-features = false, features = [
+halo2curves = { package = "halo2curves-axiom", version = "0.7.3", default-features = false, features = [
     "bits",
     "bn256-table",
     "derive_serde",
