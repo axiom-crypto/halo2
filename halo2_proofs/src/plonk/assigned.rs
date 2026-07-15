@@ -7,6 +7,7 @@ use group::ff::Field;
 /// Stored as a fraction, so the backend can use batch inversion.
 ///
 /// A denominator of zero maps to an assigned value of zero.
+#[repr(C, u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum Assigned<F> {
     /// The field element zero.
