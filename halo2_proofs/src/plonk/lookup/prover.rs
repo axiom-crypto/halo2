@@ -113,9 +113,7 @@ impl<F: WithSmallOrderMulGroup<3>> Argument<F> {
                         challenges,
                     ))
                 })
-                .fold(domain.empty_lagrange(), |acc, expression| {
-                    acc * *theta + &expression
-                });
+                .fold(domain.empty_lagrange(), |acc, expression| acc * *theta + &expression);
             compressed_expression
         };
 
@@ -453,12 +451,10 @@ where
         .unwrap();
     #[cfg(not(feature = "multicore"))]
     let input_uniques: HashMap<C::Scalar, usize> =
-        input_expression
-            .iter()
-            .fold(HashMap::with_capacity(capacity), |mut acc, coeff| {
-                *acc.entry(*coeff).or_insert(0) += 1;
-                acc
-            });
+        input_expression.iter().fold(HashMap::with_capacity(capacity), |mut acc, coeff| {
+            *acc.entry(*coeff).or_insert(0) += 1;
+            acc
+        });
     #[cfg(feature = "profile")]
     end_timer!(input_time);
 
@@ -586,10 +582,8 @@ fn permute_expression_pair_seq<'params, C: CurveAffine, P: Params<'params, C>, R
     permuted_input_expression.sort();
 
     // A BTreeMap of each unique element in the table expression and its count
-    let mut leftover_table_map: BTreeMap<C::Scalar, u32> = table_expression
-        .iter()
-        .take(usable_rows)
-        .fold(BTreeMap::new(), |mut acc, coeff| {
+    let mut leftover_table_map: BTreeMap<C::Scalar, u32> =
+        table_expression.iter().take(usable_rows).fold(BTreeMap::new(), |mut acc, coeff| {
             *acc.entry(*coeff).or_insert(0) += 1;
             acc
         });
@@ -637,10 +631,8 @@ fn permute_expression_pair_seq<'params, C: CurveAffine, P: Params<'params, C>, R
     #[cfg(feature = "sanity-checks")]
     {
         let mut last = None;
-        for (a, b) in permuted_input_expression
-            .iter()
-            .zip(permuted_table_coeffs.iter())
-            .take(usable_rows)
+        for (a, b) in
+            permuted_input_expression.iter().zip(permuted_table_coeffs.iter()).take(usable_rows)
         {
             if *a != *b {
                 assert_eq!(*a, last.unwrap());

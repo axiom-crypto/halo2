@@ -1,8 +1,4 @@
-#[cfg(all(
-    feature = "multicore",
-    target_arch = "wasm32",
-    not(target_feature = "atomics")
-))]
+#[cfg(all(feature = "multicore", target_arch = "wasm32", not(target_feature = "atomics")))]
 compile_error!(
     "The multicore feature flag is not supported on wasm32 architectures without atomics"
 );
@@ -50,8 +46,7 @@ where
         identity: impl Fn() -> T + Send + Sync,
         fold_op: impl Fn(T, Result<T, E>) -> Result<T, E> + Send + Sync,
     ) -> Result<T, E> {
-        self.try_fold(&identity, &fold_op)
-            .try_reduce(&identity, |a, b| fold_op(a, Ok(b)))
+        self.try_fold(&identity, &fold_op).try_reduce(&identity, |a, b| fold_op(a, Ok(b)))
     }
 }
 

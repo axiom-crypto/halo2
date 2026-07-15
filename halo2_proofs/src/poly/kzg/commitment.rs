@@ -115,14 +115,7 @@ impl<E: Engine + Debug> ParamsKZG<E> {
         let g2 = <E::G2Affine as PrimeCurveAffine>::generator();
         let s_g2 = (g2 * s).into();
 
-        Self {
-            k,
-            n,
-            g,
-            g_lagrange,
-            g2,
-            s_g2,
-        }
+        Self { k, n, g, g_lagrange, g2, s_g2 }
     }
 
     /// Initializes parameters for the curve through existing parameters
@@ -254,14 +247,7 @@ impl<E: Engine + Debug> ParamsKZG<E> {
         let g2 = E::G2Affine::read(reader, format)?;
         let s_g2 = E::G2Affine::read(reader, format)?;
 
-        Ok(Self {
-            k,
-            n: n as u64,
-            g,
-            g_lagrange,
-            g2,
-            s_g2,
-        })
+        Ok(Self { k, n: n as u64, g, g_lagrange, g2, s_g2 })
     }
 }
 

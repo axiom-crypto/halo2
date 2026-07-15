@@ -62,11 +62,7 @@ fn rand_poly_par(mut rng: ChaCha20Rng, domain: usize) -> Vec<Scalar> {
 fn bench_commit(c: &mut Criterion) {
     let mut group = c.benchmark_group("Blinder_poly");
     let rand = ChaCha20Rng::from_seed([1u8; 32]);
-    for i in [
-        18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize,
-    ]
-    .iter()
-    {
+    for i in [18usize, 19usize, 20usize, 21usize, 22usize, 23usize, 24usize, 25usize].iter() {
         group.bench_with_input(BenchmarkId::new("serial", i), i, |b, i| {
             b.iter(|| rand_poly_serial(rand.clone(), *i))
         });

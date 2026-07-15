@@ -28,9 +28,7 @@ use std::io;
 use crate::multicore::ParallelIterator;
 
 fn div_by_vanishing<F: Field>(poly: Polynomial<F, Coeff>, roots: &[F]) -> Vec<F> {
-    let poly = roots.iter().fold(poly.into_values(), |poly, point| {
-        kate_division(&poly, *point)
-    });
+    let poly = roots.iter().fold(poly.into_values(), |poly, point| kate_division(&poly, *point));
 
     poly
 }
@@ -46,10 +44,7 @@ impl<'a, C: CurveAffine> Commitment<C::Scalar, PolynomialPointer<'a, C>> {
 
         let low_degree_equivalent = Polynomial::new(poly);
 
-        CommitmentExtension {
-            commitment: self.clone(),
-            low_degree_equivalent,
-        }
+        CommitmentExtension { commitment: self.clone(), low_degree_equivalent }
     }
 }
 
@@ -64,9 +59,8 @@ impl<'a, C: CurveAffine> CommitmentExtension<'a, C> {
         let len = self.low_degree_equivalent.len();
         let mut p_x = self.commitment.get().poly.clone();
         parallelize(&mut p_x.values_mut()[0..len], |lhs, start| {
-            for (lhs, rhs) in lhs
-                .iter_mut()
-                .zip(self.low_degree_equivalent.values()[start..].iter())
+            for (lhs, rhs) in
+                lhs.iter_mut().zip(self.low_degree_equivalent.values()[start..].iter())
             {
                 *lhs -= *rhs;
             }
@@ -82,10 +76,7 @@ struct RotationSetExtension<'a, C: CurveAffine> {
 
 impl<'a, C: CurveAffine> RotationSet<C::Scalar, PolynomialPointer<'a, C>> {
     fn extend(self, commitments: Vec<CommitmentExtension<'a, C>>) -> RotationSetExtension<'a, C> {
-        RotationSetExtension {
-            commitments,
-            points: self.points,
-        }
+        RotationSetExtension { commitments, points: self.points }
     }
 }
 
@@ -176,10 +167,8 @@ where
                 "queries iterator contains mismatching evaluations",
             )
         })?;
-        let (rotation_sets, super_point_set) = (
-            intermediate_sets.rotation_sets,
-            intermediate_sets.super_point_set,
-        );
+        let (rotation_sets, super_point_set) =
+            (intermediate_sets.rotation_sets, intermediate_sets.super_point_set);
 
         let rotation_sets: Vec<RotationSetExtension<E::G1Affine>> = rotation_sets
             .into_par_iter()
@@ -197,11 +186,8 @@ where
         let v: ChallengeV<_> = transcript.squeeze_challenge_scalar();
 
         #[allow(clippy::needless_collect)]
-        let quotient_polynomials = rotation_sets
-            .as_slice()
-            .into_par_iter()
-            .map(quotient_contribution)
-            .collect::<Vec<_>>();
+        let quotient_polynomials =
+            rotation_sets.as_slice().into_par_iter().map(quotient_contribution).collect::<Vec<_>>();
 
         let h_x: Polynomial<E::Fr, Coeff> = quotient_polynomials
             .into_iter()
@@ -256,10 +242,7 @@ where
         let (linearisation_contibutions, z_diffs): (
             Vec<Polynomial<E::Fr, Coeff>>,
             Vec<E::Fr>,
-        ) = rotation_sets
-            .into_par_iter()
-            .map(linearisation_contribution)
-            .unzip();
+        ) = rotation_sets.into_par_iter().map(linearisation_contribution).unzip();
 
         let l_x: Polynomial<E::Fr, Coeff> = linearisation_contibutions
             .into_iter()

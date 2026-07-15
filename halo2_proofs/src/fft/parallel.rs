@@ -162,27 +162,21 @@ fn generate_twiddle_lookup_table<F: Field>(
     let low_degree_lut_len = 1 << sparse_degree;
     let high_degree_lut_len = 1 << (log_n - sparse_degree - without_last_level as u32);
     let mut twiddle_lut = vec![F::ZERO; low_degree_lut_len + high_degree_lut_len];
-    parallelize(
-        &mut twiddle_lut[..low_degree_lut_len],
-        |twiddle_lut, start| {
-            let mut w_n = omega.pow_vartime([start as u64, 0, 0, 0]);
-            for twiddle_lut in twiddle_lut.iter_mut() {
-                *twiddle_lut = w_n;
-                w_n *= omega;
-            }
-        },
-    );
+    parallelize(&mut twiddle_lut[..low_degree_lut_len], |twiddle_lut, start| {
+        let mut w_n = omega.pow_vartime([start as u64, 0, 0, 0]);
+        for twiddle_lut in twiddle_lut.iter_mut() {
+            *twiddle_lut = w_n;
+            w_n *= omega;
+        }
+    });
     let high_degree_omega = omega.pow_vartime([(1 << sparse_degree) as u64, 0, 0, 0]);
-    parallelize(
-        &mut twiddle_lut[low_degree_lut_len..],
-        |twiddle_lut, start| {
-            let mut w_n = high_degree_omega.pow_vartime([start as u64, 0, 0, 0]);
-            for twiddle_lut in twiddle_lut.iter_mut() {
-                *twiddle_lut = w_n;
-                w_n *= high_degree_omega;
-            }
-        },
-    );
+    parallelize(&mut twiddle_lut[low_degree_lut_len..], |twiddle_lut, start| {
+        let mut w_n = high_degree_omega.pow_vartime([start as u64, 0, 0, 0]);
+        for twiddle_lut in twiddle_lut.iter_mut() {
+            *twiddle_lut = w_n;
+            w_n *= high_degree_omega;
+        }
+    });
     twiddle_lut
 }
 

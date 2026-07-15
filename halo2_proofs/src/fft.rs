@@ -9,7 +9,15 @@ pub mod baseline;
 pub mod parallel;
 pub mod recursive;
 
-/// Runtime dispatcher to concrete FFT implementation
+/// Runtime dispatcher to the recursive FFT implementation.
+///
+/// halo2-axiom-gpu re-exports this dispatcher and relies on it always taking
+/// the `recursive::fft` path (its GPU build deliberately avoids `parallel::fft`).
+/// To keep that contract while still letting halo2-axiom-gpu re-export this
+/// function instead of forking a duplicate dispatcher, the x86_64 branch into
+/// `parallel::fft` is commented out — `parallel::fft` is still pub-accessible
+/// at `halo2_axiom::fft::parallel::fft` for any caller that wants it
+/// explicitly.
 pub fn fft<Scalar: Field, G: FftGroup<Scalar>>(
     a: &mut [G],
     omega: Scalar,
@@ -17,10 +25,12 @@ pub fn fft<Scalar: Field, G: FftGroup<Scalar>>(
     data: &FFTData<Scalar>,
     inverse: bool,
 ) {
-    // Empirically, the parallel implementation requires less memory bandwidth, which is more performant on x86_64.
-    #[cfg(target_arch = "x86_64")]
-    parallel::fft(a, omega, log_n, data, inverse);
-    #[cfg(not(target_arch = "x86_64"))]
+    // Original x86_64 fast-path, retained for reference:
+    // // Empirically, the parallel implementation requires less memory bandwidth, which is more performant on x86_64.
+    // #[cfg(target_arch = "x86_64")]
+    // parallel::fft(a, omega, log_n, data, inverse);
+    // #[cfg(not(target_arch = "x86_64"))]
+    // recursive::fft(a, omega, log_n, data, inverse)
     recursive::fft(a, omega, log_n, data, inverse)
 }
 
@@ -47,37 +57,19 @@ mod tests {
         let mut a = input.clone();
         let l_a = a.len();
         let start = start_timer!(|| format!("best fft {} ({})", a.len(), num_threads));
-        fft::baseline::fft(
-            &mut a,
-            domain.get_omega(),
-            k,
-            domain.get_fft_data(l_a),
-            false,
-        );
+        fft::baseline::fft(&mut a, domain.get_omega(), k, domain.get_fft_data(l_a), false);
         end_timer!(start);
 
         let mut c = input.clone();
         let l_c = c.len();
         let start = start_timer!(|| format!("parallel fft {} ({})", a.len(), num_threads));
-        fft::parallel::fft(
-            &mut c,
-            domain.get_omega(),
-            k,
-            domain.get_fft_data(l_c),
-            false,
-        );
+        fft::parallel::fft(&mut c, domain.get_omega(), k, domain.get_fft_data(l_c), false);
         end_timer!(start);
 
         let mut b = input;
         let l_b = b.len();
         let start = start_timer!(|| format!("recursive fft {} ({})", a.len(), num_threads));
-        fft::recursive::fft(
-            &mut b,
-            domain.get_omega(),
-            k,
-            domain.get_fft_data(l_b),
-            false,
-        );
+        fft::recursive::fft(&mut b, domain.get_omega(), k, domain.get_fft_data(l_b), false);
         end_timer!(start);
 
         for i in 0..n {
@@ -98,13 +90,7 @@ mod tests {
 
         let mut a = input.clone();
         let l_a = a.len();
-        fft::recursive::fft(
-            &mut a,
-            domain.get_omega(),
-            k,
-            domain.get_fft_data(l_a),
-            false,
-        );
+        fft::recursive::fft(&mut a, domain.get_omega(), k, domain.get_fft_data(l_a), false);
         fft::recursive::fft(
             &mut a,
             domain.get_omega_inv(), // doesn't actually do anything
@@ -127,9 +113,7 @@ mod tests {
         let omega = domain.get_omega();
         let l = 1 << k;
         let data = domain.get_fft_data(l);
-        let mut a = (0..(1 << k))
-            .map(|_| Scalar::random(OsRng))
-            .collect::<Vec<_>>();
+        let mut a = (0..(1 << k)).map(|_| Scalar::random(OsRng)).collect::<Vec<_>>();
 
         best_fft(&mut a, omega, k, data, false);
     }

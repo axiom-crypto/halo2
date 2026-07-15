@@ -74,10 +74,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     impl<FF: Field> StandardPlonk<FF> {
         fn new(config: PlonkConfig) -> Self {
-            StandardPlonk {
-                config,
-                _marker: PhantomData,
-            }
+            StandardPlonk { config, _marker: PhantomData }
         }
     }
 
@@ -159,10 +156,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         type Params = ();
 
         fn without_witnesses(&self) -> Self {
-            Self {
-                a: Value::unknown(),
-                k: self.k,
-            }
+            Self { a: Value::unknown(), k: self.k }
         }
 
         fn configure(meta: &mut ConstraintSystem<F>) -> PlonkConfig {
@@ -194,15 +188,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 vec![a.clone() * sa + b.clone() * sb + a * b * sm - (c * sc)]
             });
 
-            PlonkConfig {
-                a,
-                b,
-                c,
-                sa,
-                sb,
-                sc,
-                sm,
-            }
+            PlonkConfig { a, b, c, sa, sb, sc, sm }
         }
 
         fn synthesize(
@@ -221,9 +207,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 })?;
                 let (a1, b1, _) = cs.raw_add(&mut layouter, || {
                     let fin = a_squared + a;
-                    a.zip(a_squared)
-                        .zip(fin)
-                        .map(|((a, a_squared), fin)| (a, a_squared, fin))
+                    a.zip(a_squared).zip(fin).map(|((a, a_squared), fin)| (a, a_squared, fin))
                 })?;
                 cs.copy(&mut layouter, a0, a1)?;
                 cs.copy(&mut layouter, b1, c0)?;
@@ -235,10 +219,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     fn keygen(k: u32) -> (ParamsIPA<G1Affine>, ProvingKey<G1Affine>) {
         let params: ParamsIPA<G1Affine> = ParamsIPA::new(k);
-        let empty_circuit: MyCircuit<Fr> = MyCircuit {
-            a: Value::unknown(),
-            k,
-        };
+        let empty_circuit: MyCircuit<Fr> = MyCircuit { a: Value::unknown(), k };
         let vk = keygen_vk(&params, &empty_circuit).expect("keygen_vk should not fail");
         let pk = keygen_pk(&params, vk, &empty_circuit).expect("keygen_pk should not fail");
         (params, pk)
@@ -247,10 +228,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     fn prover(k: u32, params: &ParamsIPA<G1Affine>, pk: &ProvingKey<G1Affine>) -> Vec<u8> {
         let rng = OsRng;
 
-        let circuit: MyCircuit<Fr> = MyCircuit {
-            a: Value::known(Fr::random(rng)),
-            k,
-        };
+        let circuit: MyCircuit<Fr> = MyCircuit { a: Value::known(Fr::random(rng)), k };
 
         let mut transcript = Blake2bWrite::<_, _, Challenge255<G1Affine>>::init(vec![]);
         create_proof::<IPACommitmentScheme<G1Affine>, ProverIPA<G1Affine>, _, _, _, _>(

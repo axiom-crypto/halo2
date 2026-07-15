@@ -27,11 +27,7 @@ use crate::{
 pub(crate) fn create_domain<C, ConcreteCircuit>(
     k: u32,
     #[cfg(feature = "circuit-params")] params: ConcreteCircuit::Params,
-) -> (
-    EvaluationDomain<C::Scalar>,
-    ConstraintSystem<C::Scalar>,
-    ConcreteCircuit::Config,
-)
+) -> (EvaluationDomain<C::Scalar>, ConstraintSystem<C::Scalar>, ConcreteCircuit::Config)
 where
     C: CurveAffine,
     ConcreteCircuit: Circuit<C::Scalar>,
@@ -110,10 +106,7 @@ impl<F: Field> Assignment<F> for Assembly<F> {
 
     fn assign_fixed(&mut self, column: Column<Fixed>, row: usize, to: Assigned<F>) {
         if !self.usable_rows.contains(&row) {
-            panic!(
-                "Assign Fixed {:?}",
-                Error::not_enough_rows_available(self.k)
-            );
+            panic!("Assign Fixed {:?}", Error::not_enough_rows_available(self.k));
         }
 
         *self
@@ -149,10 +142,7 @@ impl<F: Field> Assignment<F> for Assembly<F> {
             return Err(Error::not_enough_rows_available(self.k));
         }
 
-        let col = self
-            .fixed
-            .get_mut(column.index())
-            .ok_or(Error::BoundsFailure)?;
+        let col = self.fixed.get_mut(column.index()).ok_or(Error::BoundsFailure)?;
 
         let filler = to.assign()?;
         for row in self.usable_rows.clone().skip(from_row) {
@@ -251,15 +241,9 @@ where
         let selectors = std::mem::take(&mut assembly.selectors);
         cs.directly_convert_selectors_to_fixed(selectors)
     };
-    fixed.extend(
-        selector_polys
-            .into_iter()
-            .map(|poly| domain.lagrange_from_vec(poly)),
-    );
+    fixed.extend(selector_polys.into_iter().map(|poly| domain.lagrange_from_vec(poly)));
 
-    let permutation_vk = assembly
-        .permutation
-        .build_vk(params, &domain, &cs.permutation);
+    let permutation_vk = assembly.permutation.build_vk(params, &domain, &cs.permutation);
 
     let fixed_commitments = (&fixed)
         .into_par_iter()
@@ -356,23 +340,14 @@ where
         let selectors = std::mem::take(&mut assembly.selectors);
         cs.directly_convert_selectors_to_fixed(selectors)
     };
-    fixed.extend(
-        selector_polys
-            .into_iter()
-            .map(|poly| domain.lagrange_from_vec(poly)),
-    );
+    fixed.extend(selector_polys.into_iter().map(|poly| domain.lagrange_from_vec(poly)));
 
-    let permutation_pk = assembly
-        .permutation
-        .clone()
-        .build_pk(params, &domain, &cs.permutation);
+    let permutation_pk = assembly.permutation.clone().build_pk(params, &domain, &cs.permutation);
 
     let vk = match vk {
         Some(vk) => vk,
         None => {
-            let permutation_vk = assembly
-                .permutation
-                .build_vk(params, &domain, &cs.permutation);
+            let permutation_vk = assembly.permutation.build_vk(params, &domain, &cs.permutation);
 
             let fixed_commitments = (&fixed)
                 .into_par_iter()
@@ -390,10 +365,8 @@ where
         }
     };
 
-    let fixed_polys: Vec<_> = fixed
-        .iter()
-        .map(|poly| vk.domain.lagrange_to_coeff(poly.clone()))
-        .collect();
+    let fixed_polys: Vec<_> =
+        fixed.iter().map(|poly| vk.domain.lagrange_to_coeff(poly.clone())).collect();
 
     // Compute l_0(X)
     // TODO: this can be done more efficiently

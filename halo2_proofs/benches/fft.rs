@@ -19,9 +19,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let data = domain.get_fft_data(l);
 
         group.bench_function(BenchmarkId::new("k", k), |b| {
-            let mut a = (0..(1 << k))
-                .map(|_| Scalar::random(OsRng))
-                .collect::<Vec<_>>();
+            let mut a = (0..(1 << k)).map(|_| Scalar::random(OsRng)).collect::<Vec<_>>();
 
             b.iter(|| {
                 best_fft(&mut a, omega, k, data, false);

@@ -47,9 +47,7 @@ pub struct AccumulatorStrategy<'params, E: Engine> {
 impl<'params, E: MultiMillerLoop + Debug> AccumulatorStrategy<'params, E> {
     /// Constructs an empty batch verifier
     pub fn new(params: &'params ParamsKZG<E>) -> Self {
-        AccumulatorStrategy {
-            msm_accumulator: DualMSM::new(params),
-        }
+        AccumulatorStrategy { msm_accumulator: DualMSM::new(params) }
     }
 
     /// Constructs and initialized new batch verifier
@@ -67,9 +65,7 @@ pub struct SingleStrategy<'params, E: Engine> {
 impl<'params, E: MultiMillerLoop + Debug> SingleStrategy<'params, E> {
     /// Constructs an empty batch verifier
     pub fn new(params: &'params ParamsKZG<E>) -> Self {
-        SingleStrategy {
-            msm: DualMSM::new(params),
-        }
+        SingleStrategy { msm: DualMSM::new(params) }
     }
 }
 
@@ -101,9 +97,7 @@ where
 
         // Guard is updated with new msm contributions
         let guard = f(self.msm_accumulator)?;
-        Ok(Self {
-            msm_accumulator: guard.msm_accumulator,
-        })
+        Ok(Self { msm_accumulator: guard.msm_accumulator })
     }
 
     fn finalize(self) -> bool {
