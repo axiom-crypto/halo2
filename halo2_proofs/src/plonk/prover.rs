@@ -519,7 +519,11 @@ where
     );
     let n = params.n() as usize;
     for col in advice.iter() {
-        assert_eq!(col.len(), n, "create_proof_raw: advice column length must equal params.n()");
+        assert_eq!(
+            col.len(),
+            n,
+            "create_proof_raw: advice column length must equal params.n()"
+        );
     }
 
     // Hash verification key into transcript
