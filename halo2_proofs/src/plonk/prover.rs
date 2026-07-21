@@ -1,7 +1,7 @@
 #[cfg(feature = "profile")]
 use ark_std::{end_timer, start_timer};
 use ff::{Field, WithSmallOrderMulGroup};
-use group::Curve;
+use group::{prime::PrimeCurveAffine, Curve};
 use rand_core::RngCore;
 
 use std::hash::Hash;
@@ -36,6 +36,17 @@ use crate::{
     poly::batch_invert_assigned,
     transcript::{EncodedChallenge, TranscriptWrite},
 };
+
+struct InstanceSingle<C: CurveAffine> {
+    pub instance_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
+    pub instance_polys: Vec<Polynomial<C::Scalar, Coeff>>,
+}
+
+#[derive(Clone)]
+struct AdviceSingle<C: CurveAffine, B: Basis> {
+    pub advice_polys: Vec<Polynomial<C::Scalar, B>>,
+    pub advice_blinds: Vec<Blind<C::Scalar>>,
+}
 
 /// This creates a proof for the provided `circuit` when given the public
 /// parameters `params` and the proving key [`ProvingKey`] that was
@@ -86,11 +97,6 @@ where
     // from the verification key.
     let meta = &pk.vk.cs;
 
-    struct InstanceSingle<C: CurveAffine> {
-        pub instance_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
-        pub instance_polys: Vec<Polynomial<C::Scalar, Coeff>>,
-    }
-
     let instance: Vec<InstanceSingle<Scheme::Curve>> = instances
         .iter()
         .map(|instance| -> InstanceSingle<Scheme::Curve> {
@@ -123,12 +129,6 @@ where
             }
         })
         .collect();
-
-    #[derive(Clone)]
-    struct AdviceSingle<C: CurveAffine, B: Basis> {
-        pub advice_polys: Vec<Polynomial<C::Scalar, B>>,
-        pub advice_blinds: Vec<Blind<C::Scalar>>,
-    }
 
     struct WitnessCollection<'params, 'a, 'b, Scheme, P, C, E, R, T>
     where
@@ -466,6 +466,227 @@ where
     };
     #[cfg(feature = "profile")]
     end_timer!(phase1_time);
+
+    create_proof_from_committed::<Scheme, P, E, R, T>(
+        params, pk, instance, advice, challenges, rng, transcript,
+    )
+}
+
+/// Creates a proof from pre-computed advice columns and per-circuit instances.
+///
+/// Skips `Circuit::synthesize`: caller supplies advice values (one `Vec<Scalar>` of
+/// length `params.n()` per column). Blinding-factor rows may be left zero — this
+/// function overwrites them from `rng` in the same order [`create_proof`] would.
+/// Restricted to single-circuit, single-phase circuits: multi-phase proving
+/// interleaves challenge squeezes with synthesis and cannot be expressed as a
+/// pre-synthesized advice hand-off.
+pub fn create_proof_raw<
+    'params,
+    'a,
+    Scheme: CommitmentScheme,
+    P: Prover<'params, Scheme>,
+    E: EncodedChallenge<Scheme::Curve>,
+    R: RngCore + 'a,
+    T: TranscriptWrite<Scheme::Curve, E>,
+>(
+    params: &'params Scheme::ParamsProver,
+    pk: &ProvingKey<Scheme::Curve>,
+    instances: &'a [&'a [Scheme::Scalar]],
+    mut advice: Vec<Vec<Scheme::Scalar>>,
+    mut rng: R,
+    transcript: &'a mut T,
+) -> Result<(), Error>
+where
+    Scheme::Scalar: Hash + WithSmallOrderMulGroup<3>,
+    <Scheme as CommitmentScheme>::ParamsProver: Sync,
+{
+    let meta = &pk.vk.cs;
+    if instances.len() != meta.num_instance_columns {
+        return Err(Error::InvalidInstances);
+    }
+    let phases: Vec<_> = meta.phases().collect();
+    assert_eq!(
+        phases.len(),
+        1,
+        "create_proof_raw supports single-phase circuits only: multi-phase \
+         challenge squeezes interleave with synthesis and cannot go through \
+         create_proof_raw"
+    );
+    assert_eq!(
+        advice.len(),
+        meta.num_advice_columns,
+        "create_proof_raw: advice column count mismatch"
+    );
+    let n = params.n() as usize;
+    for col in advice.iter() {
+        assert_eq!(col.len(), n, "create_proof_raw: advice column length must equal params.n()");
+    }
+
+    // Hash verification key into transcript
+    pk.vk.hash_into(transcript)?;
+
+    let domain = &pk.vk.domain;
+
+    // Materialize the single instance
+    let instance_single: InstanceSingle<Scheme::Curve> = {
+        let instance_values = instances
+            .iter()
+            .map(|values| {
+                let mut poly = domain.empty_lagrange();
+                assert_eq!(poly.len(), n);
+                if values.len() > (poly.len() - (meta.blinding_factors() + 1)) {
+                    panic!("Error::InstanceTooLarge");
+                }
+                for (poly, value) in poly.iter_mut().zip(values.iter()) {
+                    *poly = *value;
+                }
+                poly
+            })
+            .collect::<Vec<_>>();
+
+        let instance_polys: Vec<_> = instance_values
+            .iter()
+            .map(|poly| {
+                let lagrange_vec = domain.lagrange_from_vec(poly.to_vec());
+                domain.lagrange_to_coeff(lagrange_vec)
+            })
+            .collect();
+
+        InstanceSingle {
+            instance_values,
+            instance_polys,
+        }
+    };
+
+    // Absorb instances into transcript, mirroring `WitnessCollection::next_phase`
+    // for phase 0.
+    if !P::QUERY_INSTANCE {
+        for values in instances.iter() {
+            for value in values.iter() {
+                transcript
+                    .common_scalar(*value)
+                    .expect("Absorbing instance value to transcript failed");
+            }
+        }
+    } else {
+        let instance_commitments_projective: Vec<_> = (&instance_single.instance_values)
+            .into_par_iter()
+            .map(|poly| params.commit_lagrange(poly, Blind::default()))
+            .collect();
+        let mut instance_commitments =
+            vec![Scheme::Curve::identity(); instance_commitments_projective.len()];
+        <Scheme::Curve as CurveAffine>::CurveExt::batch_normalize(
+            &instance_commitments_projective,
+            &mut instance_commitments,
+        );
+        drop(instance_commitments_projective);
+
+        for commitment in &instance_commitments {
+            transcript
+                .common_point(*commitment)
+                .expect("Absorbing instance commitment to transcript failed");
+        }
+    }
+
+    // Fill blinding rows and draw commitment blinds in the same rng order as
+    // `create_proof` (per-column tail blinders, then one Blind per column).
+    let unusable_rows_start = n - (meta.blinding_factors() + 1);
+    for col in advice.iter_mut() {
+        for cell in &mut col[unusable_rows_start..] {
+            *cell = Scheme::Scalar::random(&mut rng);
+        }
+    }
+    let advice_blinds: Vec<Blind<Scheme::Scalar>> = advice
+        .iter()
+        .map(|_| Blind(Scheme::Scalar::random(&mut rng)))
+        .collect();
+
+    // Wrap advice as Lagrange polynomials.
+    let advice_values: Vec<Polynomial<Scheme::Scalar, LagrangeCoeff>> = advice
+        .into_iter()
+        .map(|col| domain.lagrange_from_vec(col))
+        .collect();
+
+    // Commit to advice columns.
+    let advice_commitments_projective: Vec<_> = (&advice_values)
+        .into_par_iter()
+        .zip((&advice_blinds).into_par_iter())
+        .map(|(poly, blind)| params.commit_lagrange(poly, *blind))
+        .collect();
+    let mut advice_commitments =
+        vec![Scheme::Curve::identity(); advice_commitments_projective.len()];
+    <Scheme::Curve as CurveAffine>::CurveExt::batch_normalize(
+        &advice_commitments_projective,
+        &mut advice_commitments,
+    );
+    drop(advice_commitments_projective);
+
+    for commitment in &advice_commitments {
+        transcript
+            .write_point(*commitment)
+            .expect("Absorbing advice commitment to transcript failed");
+    }
+
+    // Squeeze phase-0 challenges in constraint-system order.
+    let mut challenge_indices = [(); 3].map(|_| vec![]);
+    for (index, phase) in meta.challenge_phase.iter().enumerate() {
+        challenge_indices[phase.to_u8() as usize].push(index);
+    }
+    let mut challenges_map = HashMap::<usize, Scheme::Scalar>::with_capacity(meta.num_challenges);
+    for challenge_index in challenge_indices[0].iter() {
+        let existing = challenges_map.insert(
+            *challenge_index,
+            *transcript.squeeze_challenge_scalar::<()>(),
+        );
+        assert!(existing.is_none());
+    }
+    assert_eq!(challenges_map.len(), meta.num_challenges);
+    let challenges: Vec<Scheme::Scalar> = (0..meta.num_challenges)
+        .map(|i| challenges_map.remove(&i).unwrap())
+        .collect();
+
+    let advice_single = AdviceSingle::<Scheme::Curve, LagrangeCoeff> {
+        advice_polys: advice_values,
+        advice_blinds,
+    };
+
+    create_proof_from_committed::<Scheme, P, E, R, T>(
+        params,
+        pk,
+        vec![instance_single],
+        vec![advice_single],
+        challenges,
+        rng,
+        transcript,
+    )
+}
+
+/// Post-phase-1 half of proof generation: given committed instance/advice
+/// singles and their per-phase challenges, drives lookups, permutations,
+/// vanishing, evaluations, and multiopen.
+fn create_proof_from_committed<
+    'params,
+    'a,
+    Scheme: CommitmentScheme,
+    P: Prover<'params, Scheme>,
+    E: EncodedChallenge<Scheme::Curve>,
+    R: RngCore + 'a,
+    T: TranscriptWrite<Scheme::Curve, E>,
+>(
+    params: &'params Scheme::ParamsProver,
+    pk: &ProvingKey<Scheme::Curve>,
+    instance: Vec<InstanceSingle<Scheme::Curve>>,
+    advice: Vec<AdviceSingle<Scheme::Curve, LagrangeCoeff>>,
+    challenges: Vec<Scheme::Scalar>,
+    mut rng: R,
+    transcript: &'a mut T,
+) -> Result<(), Error>
+where
+    Scheme::Scalar: Hash + WithSmallOrderMulGroup<3>,
+    <Scheme as CommitmentScheme>::ParamsProver: Sync,
+{
+    let meta = &pk.vk.cs;
+    let domain = &pk.vk.domain;
 
     #[cfg(feature = "profile")]
     let phase2_time = start_timer!(|| "Phase 2: Lookup commit permuted");
