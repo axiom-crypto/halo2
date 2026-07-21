@@ -66,6 +66,15 @@ struct AdviceCommitted<C: CurveAffine, B: Basis> {
     pub advice_blinds: Vec<Blind<C::Scalar>>,
 }
 
+/// The shape of advice columns accepted by [`create_proof_raw`]: one
+/// `Vec<F>` per physical advice column, each of length `params.n()`.
+///
+/// Aliased so downstream crates can name it unconditionally: the halo2-gpu
+/// fork exposes the same type name at the same path with a device-resident
+/// buffer element type. Callers reading `halo2_proofs::plonk::AdviceColumns`
+/// therefore stay portable across the cpu/cuda forks without a feature gate.
+pub type AdviceColumns<F> = Vec<Vec<F>>;
+
 struct WitnessCollection<'params, 'a, 'b, Scheme, P, C, E, R, T>
 where
     Scheme: CommitmentScheme<Curve = C>,
@@ -510,7 +519,7 @@ pub fn create_proof_raw<
     params: &'params Scheme::ParamsProver,
     pk: &ProvingKey<Scheme::Curve>,
     instances: &'a [&'a [Scheme::Scalar]],
-    mut advice: Vec<Vec<Scheme::Scalar>>,
+    mut advice: AdviceColumns<Scheme::Scalar>,
     mut rng: R,
     transcript: &'a mut T,
 ) -> Result<(), Error>
