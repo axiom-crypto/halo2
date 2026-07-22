@@ -29,6 +29,7 @@ mod vanishing;
 
 mod prover;
 mod verifier;
+mod witness;
 
 pub use assigned::*;
 pub use circuit::*;
@@ -36,6 +37,7 @@ pub use error::*;
 pub use keygen::*;
 pub use prover::*;
 pub use verifier::*;
+pub use witness::{synthesize_witness, AdviceColumns, AdviceSingle, InstanceSingle};
 
 use evaluation::Evaluator;
 
