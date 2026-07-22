@@ -12,12 +12,13 @@ use crate::multicore::IndexedParallelIterator;
 use crate::multicore::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashMap;
 
+use super::witness::{build_instance_single, AdviceCommitted, InstanceSingle};
 use super::{
     circuit::Circuit, lookup, permutation, vanishing, witness, ChallengeBeta, ChallengeGamma,
     ChallengeTheta, ChallengeX, ChallengeY, Error, ProvingKey,
 };
-use super::witness::{build_instance_single, AdviceCommitted, InstanceSingle};
 
+use crate::transcript::{EncodedChallenge, TranscriptWrite};
 use crate::{
     arithmetic::{eval_polynomial, CurveAffine},
     poly::{
@@ -25,7 +26,6 @@ use crate::{
         Coeff, LagrangeCoeff, Polynomial, ProverQuery,
     },
 };
-use crate::transcript::{EncodedChallenge, TranscriptWrite};
 
 /// This creates a proof for the provided `circuit` when given the public
 /// parameters `params` and the proving key [`ProvingKey`] that was
@@ -76,13 +76,7 @@ where
     #[cfg(feature = "profile")]
     let phase1_time = start_timer!(|| "Phase 1: Witness assignment and MSM commitments");
     let (advice, challenges) = witness::run_phase1_synthesis::<Scheme, P, E, R, T, ConcreteCircuit>(
-        params,
-        pk,
-        circuits,
-        instances,
-        &instance,
-        &mut rng,
-        transcript,
+        params, pk, circuits, instances, &instance, &mut rng, transcript,
     )?;
     #[cfg(feature = "profile")]
     end_timer!(phase1_time);
@@ -224,8 +218,7 @@ where
     }
 
     // Squeeze phase-0 challenges in constraint-system order.
-    let (_column_indices, challenge_indices) =
-        witness::column_and_challenge_indices(meta);
+    let (_column_indices, challenge_indices) = witness::column_and_challenge_indices(meta);
     let mut challenges_map = HashMap::<usize, Scheme::Scalar>::with_capacity(meta.num_challenges);
     for challenge_index in challenge_indices[0].iter() {
         let existing = challenges_map.insert(

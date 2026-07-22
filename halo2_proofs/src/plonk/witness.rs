@@ -552,13 +552,7 @@ where
         .collect();
 
     let (advice, challenges) = run_phase1_synthesis::<Scheme, P, E, R, T, ConcreteCircuit>(
-        params,
-        pk,
-        circuits,
-        instances,
-        &instance,
-        &mut rng,
-        transcript,
+        params, pk, circuits, instances, &instance, &mut rng, transcript,
     )?;
 
     // Convert internal (Lagrange advice + blinds) into the public shape by
